@@ -16,22 +16,25 @@ import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolution;
 import org.apache.jena.query.QuerySolutionMap;
 import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.sparql.vocabulary.FOAF;
+import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
+import org.apache.jena.vocabulary.SKOS;
 import static org.junit.Assert.assertEquals;
-import org.junit.BeforeClass;
+import org.junit.Before;
 import org.junit.Test;
 import org.spinrdf.vocabulary.SP;
 import org.spinrdf.vocabulary.SPIN;
+import org.spinrdf.vocabulary.SPL;
 
 /**
  *
@@ -39,49 +42,94 @@ import org.spinrdf.vocabulary.SPIN;
  */
 public class ConstraintTest
 {
-    private static Model ontModel;
+    private Model ontModel;
+    private Resource cardinalityTemplate;
     
-    @BeforeClass
-    public static void ontology()
+    public class QueryWrapper
+    {
+        private final Query query;
+        private final QuerySolutionMap qsm;
+        
+        public QueryWrapper(Query query, QuerySolutionMap qsm)
+        {
+            this.query = query;
+            this.qsm = qsm;
+        }
+        
+        public Query getQuery()
+        {
+            return query;
+        }
+        
+        public QuerySolutionMap getQuerySolutionMap()
+        {
+            return qsm;
+        }
+        
+    }
+    
+    @Before
+    public void ontology()
     {
         ontModel = ModelFactory.createDefaultModel();
         
         Resource query = ontModel.createResource().
                 addProperty(RDF.type, SP.Ask).
-                addLiteral(SP.text, "SELECT *\n" +
+                addLiteral(SP.text, "PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>\n" +
+"PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
+"PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
+"\n" +
+"SELECT *\n" +
 "WHERE\n" +
-"  { SELECT  (count(*) AS ?cardinality)\n" +
-"    WHERE\n" +
-"      { ?this  ?predicate  ?object }\n" +
-"    HAVING ( ?cardinality != ?count )\n" +
+"  {   { FILTER bound(?minCount)\n" +
+"        { SELECT  (count(*) AS ?cardinality)\n" +
+"          WHERE\n" +
+"            { ?this  ?predicate  ?object }\n" +
+"          HAVING ( ?cardinality < ?minCount )\n" +
+"        }\n" +
+"      }\n" +
+"    UNION\n" +
+"      { FILTER bound(?maxCount)\n" +
+"        { SELECT  (count(*) AS ?cardinality)\n" +
+"          WHERE\n" +
+"            { ?this  ?predicate  ?object }\n" +
+"          HAVING ( ?cardinality > ?maxCount )\n" +
+"        }\n" +
+"      }\n" +
+"    UNION\n" +
+"      { FILTER bound(?valueType)\n" +
+"          { FILTER ( isURI(?object) || isBlank(?object) )\n" +
+"            ?this  rdf:type  ?object .\n" +
+"            ?object (rdfs:subClassOf)* ?class\n" +
+"            FILTER ( ! ( ?class = ?valueType ) )\n" +
+"          }\n" +
+"        UNION\n" +
+"          { FILTER isLiteral(?object)\n" +
+"            BIND(datatype(?object) AS ?datatype)\n" +
+"            FILTER ( ! ( ( ( ?datatype = ?valueType ) || ( ?valueType = rdfs:Literal ) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )\n" +
+"          }\n" +
+"      }\n" +
 "  }");
 
-        Resource cardinalityTemplate = ontModel.createResource("http://ontology/cardinalityTemplate").
+        cardinalityTemplate = ontModel.createResource("http://ontology/cardinalityTemplate").
                 addProperty(RDF.type, SPIN.Template).
                 addProperty(SPIN.body, query);
         
         Resource templateConstraint = ontModel.createResource("http://ontology/bodyConstraint").
                 addProperty(RDF.type, cardinalityTemplate).
-                addProperty(ResourceFactory.createProperty("http://ontology/predicate"), SPIN.body).
-                addLiteral(ResourceFactory.createProperty("http://ontology/count"), 1);
+                addProperty(SPL.predicate, SPIN.body).
+                addLiteral(SPL.minCount, 0).
+                addLiteral(SPL.maxCount, 1);
 
         ontModel.createResource(SPIN.Template.getURI()).
                 addProperty(SPIN.constraint, templateConstraint);
-
-        
-        Resource clsConstraint = ontModel.createResource("http://ontology/nameConstraint").
-                addProperty(RDF.type, cardinalityTemplate).
-                addProperty(ResourceFactory.createProperty("http://ontology/predicate"), FOAF.name).
-                addLiteral(ResourceFactory.createProperty("http://ontology/count"), 1);
-
-        Resource cls = ontModel.createResource("http://ontology/class").
-                addProperty(RDF.type, RDFS.Class).
-                addProperty(SPIN.constraint, clsConstraint);
     }
 
-    public Map<Resource, Query> class2Query(Model model)
+    public Map<Resource, List<QueryWrapper>> class2Query(Model model)
     {
-        Map<Resource, Query> class2Query = new HashMap<>();
+        Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
+                
+        //Map<Resource, QueryWrapper> class2Query = new HashMap<>();
         StmtIterator constraintIt = model.listStatements((Resource)null, SPIN.constraint, (Resource)null);
         while (constraintIt.hasNext())
         {
@@ -94,29 +142,41 @@ public class ConstraintTest
             String constraintQueryString = constraintBody.getProperty(SP.text).getString();
             Query constraintQuery = QueryFactory.create(constraintQueryString);
         
-            class2Query.put(constrainedClass, constraintQuery);
+            QuerySolutionMap qsm = new QuerySolutionMap();
+            StmtIterator constraintProps = constraint.listProperties();
+            Property property = null;
+            while (constraintProps.hasNext())
+            {
+                Statement propStmt = constraintProps.next();
+                property = propStmt.getObject().as(Property.class);
+                if (!propStmt.getPredicate().equals(RDF.type)) qsm.add(propStmt.getPredicate().getLocalName(), property);
+            }
+            constraintProps.close();
+        
+            QueryWrapper wrapper = new QueryWrapper(constraintQuery, qsm);
+            
+            if (class2Query.containsKey(constrainedClass))
+                class2Query.get(constrainedClass).add(wrapper);
+            else
+            {
+                List<QueryWrapper> wrapperList = new ArrayList<>();
+                wrapperList.add(wrapper);
+                class2Query.put(constrainedClass, wrapperList);
+            }
+            
             //System.out.println(class2Query);
             // SPIN template. TO-DO: SPIN query
         }
         constraintIt.close();
+        
         return class2Query;
     }
     
-    public void runQueryOnClass(List<ConstraintViolation> cvs, Query query, Resource cls, Model model)
+    public void runQueryOnClass(List<ConstraintViolation> cvs, QueryWrapper wrapper, Resource cls, Model model)
     {
         QuerySolutionMap qsm = new QuerySolutionMap();
+        qsm.addAll(wrapper.getQuerySolutionMap());
 
-        Resource constraint = cls.getPropertyResourceValue(SPIN.constraint);
-        StmtIterator constraintProps = constraint.listProperties();
-        Property property = null;
-        while (constraintProps.hasNext())
-        {
-            Statement stmt = constraintProps.next();
-            property = stmt.getObject().as(Property.class);
-            if (!stmt.getPredicate().equals(RDF.type)) qsm.add(stmt.getPredicate().getLocalName(), property);
-        }
-        constraintProps.close();
-            
         ResIterator it = model.listSubjectsWithProperty(RDF.type, cls);
         while (it.hasNext())
         {
@@ -125,17 +185,18 @@ public class ConstraintTest
             qsm.add(SPIN.THIS_VAR_NAME, instance);
             System.out.println(qsm);
           
-            try (QueryExecution qex = QueryExecutionFactory.create(query, model, qsm))
+            try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
             {
                 ResultSet rs = qex.execSelect();
+                //ResultSetFormatter.out(System.out, rs);
                 
                 while (rs.hasNext())
                 {
                     QuerySolution qs = rs.next();
                     
                     List<SimplePropertyPath> paths = new ArrayList<>();
-                    paths.add(new ObjectPropertyPath(instance, property));
-                    cvs.add(new ConstraintViolation(instance, paths, null, "Violation failed", null));
+                    paths.add(new ObjectPropertyPath(instance, null)); // property
+                    cvs.add(new ConstraintViolation(instance, paths, null, "Validation failed", null));
                 }
             }
         }
@@ -143,42 +204,103 @@ public class ConstraintTest
         it.close();
     }
 
-
+    public List<ConstraintViolation> validate(Model model)
+    {
+        List<ConstraintViolation> cvs = new ArrayList<>();
+        
+        Map<Resource, List<QueryWrapper>> class2Query = class2Query(ontModel);
+        for (Resource cls : class2Query.keySet())
+        {
+            List<QueryWrapper> wrappers = class2Query.get(cls);
+            for (QueryWrapper wrapper : wrappers)
+                runQueryOnClass(cvs, wrapper, cls, model);
+        }
+        
+        return cvs;
+    }
+    
     @Test
     public void testValidateSystemCardinality()
     {
-        List<ConstraintViolation> cvs = new ArrayList<>();
-
-        Map<Resource, Query> class2Query = class2Query(ontModel);
-        for (Resource cls : class2Query.keySet())
-        {
-            Query query = class2Query.get(cls);
-            
-            runQueryOnClass(cvs, query, cls, ontModel);
-        }
-        
-        assertEquals(0, cvs.size());
+        assertEquals(0, validate(ontModel).size());
     }
     
     @Test
-    public void testValidateCardinality()
+    public void testValidateMinCount()
     {
-        List<ConstraintViolation> cvs = new ArrayList<>();
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, 1);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
         
         Model model = ModelFactory.createDefaultModel();
-        Resource violatingInstance = model.createResource("http://data/instance").
+        model.createResource("http://data/instance").
                 addProperty(RDF.type, model.createResource("http://ontology/class"));
-                // addLiteral(FOAF.name, "Shit"); // missing foaf:name validates constraint
         
-        Map<Resource, Query> class2Query = class2Query(ontModel);
-        for (Resource cls : class2Query.keySet())
-        {
-            Query query = class2Query.get(cls);
-
-            runQueryOnClass(cvs, query, cls, model);
-        }
-        
-        assertEquals(1, cvs.size());
+        assertEquals(1, validate(model).size());
     }
     
+    @Test
+    public void testValidateMaxCount()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.maxCount, 1);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addLiteral(FOAF.name, "one").
+                addLiteral(FOAF.name, "two");
+        
+        assertEquals(1, validate(model).size());
+    }
+    
+    @Test
+    public void invalidValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, DCTerms.subject).
+                addProperty(SPL.valueType, SKOS.Concept);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addLiteral(DCTerms.subject, "not skos:Concept");
+        
+        assertEquals(1, validate(model).size());
+    }
+
+    @Test
+    public void validValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, DCTerms.subject).
+                addProperty(SPL.valueType, SKOS.Concept);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        Resource concept = model.createResource("http://data/concept").
+                addProperty(RDF.type, SKOS.Concept);
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addLiteral(DCTerms.subject, concept);
+        
+        assertEquals(0, validate(model).size());
+    }
+
 }
