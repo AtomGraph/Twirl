@@ -97,14 +97,17 @@ public class ConstraintTest
 "        }\n" +
 "      }\n" +
 "    UNION\n" +
-"      { FILTER bound(?valueType)\n" +
+"      { ?this  ?predicate  ?object\n" +
 "          { FILTER ( isURI(?object) || isBlank(?object) )\n" +
-"            ?this  rdf:type  ?object .\n" +
-"            ?object (rdfs:subClassOf)* ?class\n" +
-"            FILTER ( ! ( ?class = ?valueType ) )\n" +
+"            FILTER bound(?valueType)\n" +
+"            ?object a ?class .\n" +
+"            FILTER NOT EXISTS {\n" +
+"                                ?class (rdfs:subClassOf)* ?valueType\n" +
+"                              }\n" +
 "          }\n" +
 "        UNION\n" +
 "          { FILTER isLiteral(?object)\n" +
+"            FILTER bound(?valueType)\n" +
 "            BIND(datatype(?object) AS ?datatype)\n" +
 "            FILTER ( ! ( ( ( ?datatype = ?valueType ) || ( ?valueType = rdfs:Literal ) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )\n" +
 "          }\n" +
@@ -220,13 +223,13 @@ public class ConstraintTest
     }
     
     @Test
-    public void testValidateSystemCardinality()
+    public void validateSystem()
     {
         assertEquals(0, validate(ontModel).size());
     }
     
     @Test
-    public void testValidateMinCount()
+    public void invalidMinCount()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
                 addProperty(RDF.type, cardinalityTemplate).
@@ -244,7 +247,7 @@ public class ConstraintTest
     }
     
     @Test
-    public void testValidateMaxCount()
+    public void invalidMaxCount()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
                 addProperty(RDF.type, cardinalityTemplate).
@@ -275,13 +278,38 @@ public class ConstraintTest
                 addProperty(SPIN.constraint, constraint);
         
         Model model = ModelFactory.createDefaultModel();
+        Resource notConcept = model.createResource("http://ontology/not-skos-concept").
+                addProperty(RDF.type, SKOS.Collection);
         model.createResource("http://data/instance").
                 addProperty(RDF.type, model.createResource("http://ontology/class")).
-                addLiteral(DCTerms.subject, "not skos:Concept");
+                addProperty(DCTerms.subject, notConcept);
         
         assertEquals(1, validate(model).size());
     }
 
+    @Test
+    public void invalidSubClassValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, DCTerms.subject).
+                addProperty(SPL.valueType, SKOS.Concept);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        Resource subClass = model.createResource("http://data/not-concept-subclass").
+                addProperty(RDFS.subClassOf, SKOS.Collection);
+        Resource notConcept = model.createResource("http://ontology/not-skos-concept").
+                addProperty(RDF.type, subClass);
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addProperty(DCTerms.subject, notConcept);
+        
+        assertEquals(1, validate(model).size());
+    }
+    
     @Test
     public void validValueType()
     {
@@ -298,9 +326,32 @@ public class ConstraintTest
                 addProperty(RDF.type, SKOS.Concept);
         model.createResource("http://data/instance").
                 addProperty(RDF.type, model.createResource("http://ontology/class")).
-                addLiteral(DCTerms.subject, concept);
+                addProperty(DCTerms.subject, concept);
         
         assertEquals(0, validate(model).size());
     }
 
+    @Test
+    public void validSubClassValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, DCTerms.subject).
+                addProperty(SPL.valueType, SKOS.Concept);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        Resource subClass = model.createResource("http://data/concept-subclass").
+                addProperty(RDFS.subClassOf, SKOS.Concept);
+        Resource concept = model.createResource("http://data/concept").
+                addProperty(RDF.type, subClass);
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addProperty(DCTerms.subject, concept);
+        
+        assertEquals(0, validate(model).size());
+    }
+    
 }
