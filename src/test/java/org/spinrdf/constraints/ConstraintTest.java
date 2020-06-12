@@ -111,8 +111,7 @@ public class ConstraintTest
 "            FILTER isLiteral(?object)\n" +
 "            FILTER bound(?valueType)\n" +
 "            BIND(datatype(?object) AS ?datatype)\n" +
-"            FILTER ( ! ( ( ( ?datatype = ?valueType ) || ( ?valueType = rdfs:Literal ) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )\n" +
-
+"            FILTER ( ! ( ?datatype IN (?valueType, rdfs:Literal) || ( ( ! bound(?datatype) || ?datatype = rdf:langString ) && ?valueType = xsd:string ) ) )\n" +
 "      }\n" +
 "  }");
 
