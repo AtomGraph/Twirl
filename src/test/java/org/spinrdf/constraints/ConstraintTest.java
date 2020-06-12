@@ -29,6 +29,7 @@ import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.SKOS;
+import org.apache.jena.vocabulary.XSD;
 import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.Test;
@@ -98,19 +99,20 @@ public class ConstraintTest
 "      }\n" +
 "    UNION\n" +
 "      { ?this  ?predicate  ?object\n" +
-"          { FILTER ( isURI(?object) || isBlank(?object) )\n" +
+"            FILTER ( isURI(?object) || isBlank(?object) )\n" +
 "            FILTER bound(?valueType)\n" +
-"            ?object a ?class .\n" +
 "            FILTER NOT EXISTS {\n" +
+"                                ?object a ?class .\n" +
 "                                ?class (rdfs:subClassOf)* ?valueType\n" +
 "                              }\n" +
 "          }\n" +
-"        UNION\n" +
-"          { FILTER isLiteral(?object)\n" +
+"    UNION\n" +
+"      { ?this  ?predicate  ?object\n" +
+"            FILTER isLiteral(?object)\n" +
 "            FILTER bound(?valueType)\n" +
 "            BIND(datatype(?object) AS ?datatype)\n" +
 "            FILTER ( ! ( ( ( ?datatype = ?valueType ) || ( ?valueType = rdfs:Literal ) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )\n" +
-"          }\n" +
+
 "      }\n" +
 "  }");
 
@@ -132,7 +134,6 @@ public class ConstraintTest
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
                 
-        //Map<Resource, QueryWrapper> class2Query = new HashMap<>();
         StmtIterator constraintIt = model.listStatements((Resource)null, SPIN.constraint, (Resource)null);
         while (constraintIt.hasNext())
         {
@@ -191,7 +192,7 @@ public class ConstraintTest
             try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
             {
                 ResultSet rs = qex.execSelect();
-                //ResultSetFormatter.out(System.out, rs);
+//                ResultSetFormatter.out(System.out, rs);
                 
                 while (rs.hasNext())
                 {
@@ -267,7 +268,7 @@ public class ConstraintTest
     }
     
     @Test
-    public void invalidValueType()
+    public void invalidResourceValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
                 addProperty(RDF.type, cardinalityTemplate).
@@ -288,7 +289,7 @@ public class ConstraintTest
     }
 
     @Test
-    public void invalidSubClassValueType()
+    public void invalidResourceSubClassValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
                 addProperty(RDF.type, cardinalityTemplate).
@@ -311,7 +312,7 @@ public class ConstraintTest
     }
     
     @Test
-    public void validValueType()
+    public void validResourceValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
                 addProperty(RDF.type, cardinalityTemplate).
@@ -332,7 +333,7 @@ public class ConstraintTest
     }
 
     @Test
-    public void validSubClassValueType()
+    public void validResourceSubClassValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
                 addProperty(RDF.type, cardinalityTemplate).
@@ -352,6 +353,64 @@ public class ConstraintTest
                 addProperty(DCTerms.subject, concept);
         
         assertEquals(0, validate(model).size());
+    }
+    
+    @Test
+    public void validLiteralValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, DCTerms.subject).
+                addProperty(SPL.valueType, RDFS.Literal);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint).
+                addProperty(FOAF.name, SKOS.Collection); // will not cause violation since isLiteral(?object) = false
+        
+        Model model = ModelFactory.createDefaultModel();
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addProperty(FOAF.name, "literal");
+        
+        assertEquals(0, validate(model).size());
+    }
+    
+    @Test
+    public void validStringValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, FOAF.name).
+                addProperty(SPL.valueType, XSD.xstring);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addLiteral(FOAF.name, "literal");
+        
+        assertEquals(0, validate(model).size());
+    }
+    
+    @Test
+    public void invalidStringValueType()
+    {
+        Resource constraint = ontModel.createResource("http://ontology/constraint").
+                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(SPL.predicate, FOAF.name).
+                addProperty(SPL.valueType, XSD.xstring);
+        ontModel.createResource("http://ontology/class").
+                addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        Model model = ModelFactory.createDefaultModel();
+        model.createResource("http://data/instance").
+                addProperty(RDF.type, model.createResource("http://ontology/class")).
+                addLiteral(FOAF.name, 42);
+
+        assertEquals(1, validate(model).size());
     }
     
 }
