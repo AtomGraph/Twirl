@@ -5,25 +5,13 @@
  */
 package org.spinrdf.constraints;
 
+import com.atomgraph.spinrdf.constraints.SPINConstraints.QueryWrapper;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
-import org.apache.jena.query.QueryFactory;
-import org.apache.jena.query.QuerySolution;
-import org.apache.jena.query.QuerySolutionMap;
-import org.apache.jena.query.ResultSet;
-import org.apache.jena.query.ResultSetFormatter;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.Property;
-import org.apache.jena.rdf.model.ResIterator;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.Statement;
-import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
@@ -46,57 +34,39 @@ public class ConstraintTest
     private Model ontModel;
     private Resource cardinalityTemplate;
     
-    public class QueryWrapper
-    {
-        private final Query query;
-        private final QuerySolutionMap qsm;
-        
-        public QueryWrapper(Query query, QuerySolutionMap qsm)
-        {
-            this.query = query;
-            this.qsm = qsm;
-        }
-        
-        public Query getQuery()
-        {
-            return query;
-        }
-        
-        public QuerySolutionMap getQuerySolutionMap()
-        {
-            return qsm;
-        }
-        
-    }
-    
     @Before
     public void ontology()
     {
         ontModel = ModelFactory.createDefaultModel();
-        
         Resource query = ontModel.createResource().
                 addProperty(RDF.type, SP.Ask).
                 addLiteral(SP.text, "PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>\n" +
 "PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
 "PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
+"PREFIX spin: <http://spinrdf.org/spin#>\n" +
 "\n" +
-"SELECT *\n" +
+        "CONSTRUCT {\n" +
+"    _:b0 a spin:ConstraintViolation .\n" +
+"    _:b0 spin:violationRoot ?this .\n" +
+"    _:b0 spin:violationPath ?predicate .\n" +
+"}\n" +
 "WHERE\n" +
-"  {   { FILTER bound(?minCount)\n" +
+"  {\n" +
 "        { SELECT  (count(*) AS ?cardinality)\n" +
 "          WHERE\n" +
-"            { ?this  ?predicate  ?object }\n" +
+"            { ?this  ?predicate  ?object \n" +
+"             # FILTER bound(?minCount) \n" +
+"            }\n" +
 "          HAVING ( ?cardinality < ?minCount )\n" +
 "        }\n" +
-"      }\n" +
 "    UNION\n" +
-"      { FILTER bound(?maxCount)\n" +
 "        { SELECT  (count(*) AS ?cardinality)\n" +
 "          WHERE\n" +
-"            { ?this  ?predicate  ?object }\n" +
+"            { ?this  ?predicate  ?object \n" +
+"               FILTER bound(?maxCount) \n" +
+"            }\n" +
 "          HAVING ( ?cardinality > ?maxCount )\n" +
 "        }\n" +
-"      }\n" +
 "    UNION\n" +
 "      { ?this  ?predicate  ?object\n" +
 "            FILTER ( isURI(?object) || isBlank(?object) )\n" +
@@ -129,94 +99,16 @@ public class ConstraintTest
                 addProperty(SPIN.constraint, templateConstraint);
     }
 
-    public Map<Resource, List<QueryWrapper>> class2Query(Model model)
-    {
-        Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
-                
-        StmtIterator constraintIt = model.listStatements((Resource)null, SPIN.constraint, (Resource)null);
-        while (constraintIt.hasNext())
-        {
-            Statement stmt = constraintIt.next();
-            
-            Resource constrainedClass = stmt.getSubject();
-            Resource constraint = stmt.getResource();
-            Resource constraintType = constraint.getPropertyResourceValue(RDF.type);
-            Resource constraintBody = constraintType.getPropertyResourceValue(SPIN.body);
-            String constraintQueryString = constraintBody.getProperty(SP.text).getString();
-            Query constraintQuery = QueryFactory.create(constraintQueryString);
-        
-            QuerySolutionMap qsm = new QuerySolutionMap();
-            StmtIterator constraintProps = constraint.listProperties();
-            Property property = null;
-            while (constraintProps.hasNext())
-            {
-                Statement propStmt = constraintProps.next();
-                property = propStmt.getObject().as(Property.class);
-                if (!propStmt.getPredicate().equals(RDF.type)) qsm.add(propStmt.getPredicate().getLocalName(), property);
-            }
-            constraintProps.close();
-        
-            QueryWrapper wrapper = new QueryWrapper(constraintQuery, qsm);
-            
-            if (class2Query.containsKey(constrainedClass))
-                class2Query.get(constrainedClass).add(wrapper);
-            else
-            {
-                List<QueryWrapper> wrapperList = new ArrayList<>();
-                wrapperList.add(wrapper);
-                class2Query.put(constrainedClass, wrapperList);
-            }
-            
-            //System.out.println(class2Query);
-            // SPIN template. TO-DO: SPIN query
-        }
-        constraintIt.close();
-        
-        return class2Query;
-    }
-    
-    public void runQueryOnClass(List<ConstraintViolation> cvs, QueryWrapper wrapper, Resource cls, Model model)
-    {
-        QuerySolutionMap qsm = new QuerySolutionMap();
-        qsm.addAll(wrapper.getQuerySolutionMap());
-
-        ResIterator it = model.listSubjectsWithProperty(RDF.type, cls);
-        while (it.hasNext())
-        {
-            Resource instance = it.next();
-
-            qsm.add(SPIN.THIS_VAR_NAME, instance);
-            System.out.println(qsm);
-          
-            try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
-            {
-                ResultSet rs = qex.execSelect();
-//                ResultSetFormatter.out(System.out, rs);
-                
-                while (rs.hasNext())
-                {
-                    QuerySolution qs = rs.next();
-                    
-                    List<SimplePropertyPath> paths = new ArrayList<>();
-                    paths.add(new ObjectPropertyPath(instance, null)); // property
-                    cvs.add(new ConstraintViolation(instance, paths, null, "Validation failed", null));
-                }
-            }
-        }
-        
-        it.close();
-    }
-
     public List<ConstraintViolation> validate(Model model)
     {
         List<ConstraintViolation> cvs = new ArrayList<>();
         
-        Map<Resource, List<QueryWrapper>> class2Query = class2Query(ontModel);
+        Map<Resource, List<QueryWrapper>> class2Query = com.atomgraph.spinrdf.constraints.SPINConstraints.class2Query(ontModel);
         for (Resource cls : class2Query.keySet())
         {
             List<QueryWrapper> wrappers = class2Query.get(cls);
             for (QueryWrapper wrapper : wrappers)
-                runQueryOnClass(cvs, wrapper, cls, model);
+                com.atomgraph.spinrdf.constraints.SPINConstraints.runQueryOnClass(cvs, wrapper, cls, model);
         }
         
         return cvs;
