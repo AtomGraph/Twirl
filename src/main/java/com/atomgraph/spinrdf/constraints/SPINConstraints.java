@@ -33,6 +33,7 @@ import org.spinrdf.constraints.SimplePropertyPath;
 import org.spinrdf.constraints.SubjectPropertyPath;
 import com.atomgraph.spinrdf.model.TemplateCall;
 import org.apache.jena.ontology.OntModel;
+import org.apache.jena.query.ResultSetFormatter;
 import org.spinrdf.system.SPINLabels;
 import org.spinrdf.util.JenaUtil;
 import org.spinrdf.vocabulary.SP;
@@ -154,6 +155,7 @@ public class SPINConstraints
             try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
             {
                 qex.execConstruct(violationModel);
+                //ResultSetFormatter.out(System.out, qex.execSelect());
 
                 addConstructedProblemReports(violationModel, cvs, model, cls, null, null, wrapper.getSource());
             }
@@ -193,8 +195,8 @@ public class SPINConstraints
                 List<SimplePropertyPath> paths = getViolationPaths(model, vio, root);
                 List<TemplateCall> fixes = getFixes(cm, model, vio);
                                 
-                RDFNode value = vio.getRequiredProperty(SPIN.violationValue).getObject();
-                Resource level = vio.getPropertyResourceValue(SPIN.violationLevel);
+                RDFNode value = vio.hasProperty(SPIN.violationValue) ? vio.getRequiredProperty(SPIN.violationValue).getObject() : null;
+                Resource level = vio.hasProperty(SPIN.violationLevel) ? vio.getPropertyResourceValue(SPIN.violationLevel) : null;
                                 
                 results.add(createConstraintViolation(paths, value, fixes, root, label, source, level));
             }

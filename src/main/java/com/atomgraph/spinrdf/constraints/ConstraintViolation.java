@@ -113,4 +113,10 @@ public class ConstraintViolation
         this.value = value;
     }
         
+    @Override
+    public String toString()
+    {
+        return "Root: " + root + " Paths: " + paths + " " + (value != null ? value : "") + " Source: " + source;
+    }
+    
 }

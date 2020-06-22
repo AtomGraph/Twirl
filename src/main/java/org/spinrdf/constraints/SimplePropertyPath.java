@@ -47,4 +47,11 @@ public abstract class SimplePropertyPath {
 	public Resource getRoot() {
 		return root;
 	}
+        
+        @Override
+        public String toString()
+        {
+            return root + " " + predicate;
+        }
+        
 }

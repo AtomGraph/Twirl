@@ -14,23 +14,6 @@
 @prefix spl: <http://spinrdf.org/spl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-arg:maxCount
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:maxLength
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:minCount
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:minLength
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-
 <http://spinrdf.org/spl>
   a spin:LibraryOntology ;
   a owl:Ontology ;
@@ -137,12 +120,12 @@ spl:Attribute
       _:b0 a spin:ConstraintViolation .
       _:b0 spin:violationRoot ?this .
       _:b0 spin:violationPath ?predicate .
-      _:b0 spin:violationValue ?object .
+      _:b0 spin:violationValue ?value .
   }
   WHERE
     {   { SELECT  (count(*) AS ?cardinality)
           WHERE
-            { ?this  ?predicate  ?object
+            { ?this  ?predicate  ?value
               FILTER bound(?minCount)
             }
           HAVING ( ?cardinality < ?minCount )
@@ -150,25 +133,25 @@ spl:Attribute
       UNION
         { { SELECT  (count(*) AS ?cardinality)
             WHERE
-              { ?this  ?predicate  ?object
+              { ?this  ?predicate  ?value
                 FILTER bound(?maxCount)
               }
             HAVING ( ?cardinality > ?maxCount )
           }
         }
       UNION
-        { ?this  ?predicate  ?object
-          FILTER ( isURI(?object) || isBlank(?object) )
+        { ?this  ?predicate  ?value
+          FILTER ( isURI(?value) || isBlank(?value) )
           FILTER bound(?valueType)
-          FILTER NOT EXISTS { ?object  rdf:type  ?class .
+          FILTER NOT EXISTS { ?value  rdf:type  ?class .
                               ?class (rdfs:subClassOf)* ?valueType
                             }
         }
       UNION
-        { ?this  ?predicate  ?object
-          FILTER isLiteral(?object)
+        { ?this  ?predicate  ?value
+          FILTER isLiteral(?value)
           FILTER bound(?valueType)
-          BIND(datatype(?object) AS ?datatype)
+          BIND(datatype(?value) AS ?datatype)
           FILTER ( ! ( ( ?datatype IN (?valueType, rdfs:Literal) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )
         }
     }"""
@@ -233,5 +216,18 @@ spl:predicate
 spl:valueType
   a rdf:Property ;
   rdfs:label "value type" ;
+  rdfs:subPropertyOf sp:arg ;
+.
+spl:minCount
+  a rdf:Property ;
+  rdfs:subPropertyOf spl:count ;
+.
+spl:maxCount
+  a rdf:Property ;
+  rdfs:subPropertyOf spl:count ;
+.
+spl:defaultValue
+  a rdf:Property ;
+  rdfs:label "default value" ;
   rdfs:subPropertyOf sp:arg ;
 .

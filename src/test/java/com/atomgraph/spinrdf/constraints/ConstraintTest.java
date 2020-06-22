@@ -49,74 +49,14 @@ public class ConstraintTest
     @Before
     public void ontology()
     {
-        ontModel = ModelFactory.createOntologyModel(); // OntModelSpec.OWL_MEM
-        ontModel.setDerivationLogging(true);
-        
-//        Resource query = ontModel.createResource().
-//                addProperty(RDF.type, SP.Construct).
-//                addLiteral(SP.text, "PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>\n" +
-//"PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
-//"PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
-//"PREFIX spin: <http://spinrdf.org/spin#>\n" +
-//"\n" +
-//        "CONSTRUCT {\n" +
-//"    _:b0 a spin:ConstraintViolation .\n" +
-//"    _:b0 spin:violationRoot ?this .\n" +
-//"    _:b0 spin:violationPath ?predicate .\n" +
-//"}\n" +
-//"WHERE\n" +
-//"  {\n" +
-//"        { SELECT  (count(*) AS ?cardinality)\n" +
-//"          WHERE\n" +
-//"            { ?this  ?predicate  ?object \n" +
-//"             # FILTER bound(?minCount) \n" +
-//"            }\n" +
-//"          HAVING ( ?cardinality < ?minCount )\n" +
-//"        }\n" +
-//"    UNION\n" +
-//"        { SELECT  (count(*) AS ?cardinality)\n" +
-//"          WHERE\n" +
-//"            { ?this  ?predicate  ?object \n" +
-//"               FILTER bound(?maxCount) \n" +
-//"            }\n" +
-//"          HAVING ( ?cardinality > ?maxCount )\n" +
-//"        }\n" +
-//"    UNION\n" +
-//"      { ?this  ?predicate  ?object\n" +
-//"            FILTER ( isURI(?object) || isBlank(?object) )\n" +
-//"            FILTER bound(?valueType)\n" +
-//"            FILTER NOT EXISTS {\n" +
-//"                                ?object a ?class .\n" +
-//"                                ?class (rdfs:subClassOf)* ?valueType\n" +
-//"                              }\n" +
-//"          }\n" +
-//"    UNION\n" +
-//"      { ?this  ?predicate  ?object\n" +
-//"            FILTER isLiteral(?object)\n" +
-//"            FILTER bound(?valueType)\n" +
-//"            BIND(datatype(?object) AS ?datatype)\n" +
-//"            FILTER ( ! ( ?datatype IN (?valueType, rdfs:Literal) || ( ( ! bound(?datatype) || ?datatype = rdf:langString ) && ?valueType = xsd:string ) ) )\n" +
-//"      }\n" +
-//"  }");
-//
-//        SPL.Attribute = ontModel.createResource("http://ontology/SPL.Attribute").
-//                addProperty(RDF.type, SPIN.Template).
-//                addProperty(SPIN.body, query);
+        ontModel = ModelFactory.createOntologyModel();
+        //ontModel.setDerivationLogging(true);
         
         Ontology ontology = ontModel.createOntology("http://ontology/");
         ontology.addImport(ResourceFactory.createResource(SP.NS));
         ontology.addImport(ResourceFactory.createResource(SPIN.NS));
         ontology.addImport(ResourceFactory.createResource(SPL.NS));
         ontModel.loadImports();
-        
-        Resource templateConstraint = ontModel.createResource("http://ontology/bodyConstraint").
-                addProperty(RDF.type, SPL.Attribute).
-                addProperty(SPL.predicate, SPIN.body).
-                addLiteral(SPL.minCount, 0).
-                addLiteral(SPL.maxCount, 1);
-
-        ontModel.createResource(SPIN.Template.getURI()).
-                addProperty(SPIN.constraint, templateConstraint); // rdfs:subPropertyOf spin:query
         
 //        final StmtIterator input = ontModel.listStatements(ontModel.createResource("http://ontology/bodyConstraint"), RDF.type, SP.Query);
 //        assert( input.hasNext() );
@@ -149,6 +89,8 @@ public class ConstraintTest
     @Test
     public void validateSystem()
     {
+        System.out.println(validate(ontModel));
+        
         assertEquals(0, validate(ontModel).size());
     }
     
