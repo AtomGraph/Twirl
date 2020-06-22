@@ -6,6 +6,7 @@
 package com.atomgraph.spinrdf.model.impl;
 
 import com.atomgraph.spinrdf.model.Argument;
+import com.atomgraph.spinrdf.vocabulary.SP;
 import org.apache.jena.enhanced.EnhGraph;
 import org.apache.jena.enhanced.EnhNode;
 import org.apache.jena.enhanced.Implementation;
@@ -19,7 +20,6 @@ import org.apache.jena.rdf.model.impl.PropertyImpl;
 import org.apache.jena.rdf.model.impl.ResourceImpl;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
-import org.spinrdf.vocabulary.SP;
 import org.spinrdf.vocabulary.SPL;
 
 /**

@@ -32,12 +32,11 @@ import org.spinrdf.constraints.ObjectPropertyPath;
 import org.spinrdf.constraints.SimplePropertyPath;
 import org.spinrdf.constraints.SubjectPropertyPath;
 import com.atomgraph.spinrdf.model.TemplateCall;
+import com.atomgraph.spinrdf.vocabulary.SP;
+import com.atomgraph.spinrdf.vocabulary.SPIN;
 import org.apache.jena.ontology.OntModel;
-import org.apache.jena.query.ResultSetFormatter;
 import org.spinrdf.system.SPINLabels;
 import org.spinrdf.util.JenaUtil;
-import org.spinrdf.vocabulary.SP;
-import org.spinrdf.vocabulary.SPIN;
 
 /**
  *
@@ -82,57 +81,43 @@ public class SPINConstraints
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
                 
         StmtIterator constraintIt = model.listStatements((Resource)null, SPIN.constraint, (Resource)null);
-        while (constraintIt.hasNext())
+        try
         {
-            Statement stmt = constraintIt.next();
-            
-            Resource constrainedClass = stmt.getSubject();
-            Resource constraint = stmt.getResource();
-            final Query constraintQuery;
-            
-            //if (constraint.hasProperty(SP.text)) // SPIN query
-            if (constraint.canAs(com.atomgraph.spinrdf.model.Query.class))
+            while (constraintIt.hasNext())
             {
-                com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
-                constraintQuery = QueryFactory.create(query.getText());
-            }
-            else // SPIN query template
-            {
-                //Resource constraintType = constraint.getPropertyResourceValue(RDF.type);
-                
-                TemplateCall templateCall = constraint.as(TemplateCall.class);
-                
-//                Resource constraintBody = constraintType.getPropertyResourceValue(SPIN.body);
-//                String constraintQueryString = constraintBody.getProperty(SP.text).getString();
-                constraintQuery = QueryFactory.create(templateCall.getTemplate().getBody().getText());
-            }
+                Statement stmt = constraintIt.next();
 
-            QuerySolutionMap qsm = new QuerySolutionMap();
-            StmtIterator constraintProps = constraint.listProperties();
-            Property property = null;
-            while (constraintProps.hasNext())
-            {
-                Statement propStmt = constraintProps.next();
-                property = propStmt.getObject().as(Property.class);
-                if (!propStmt.getPredicate().equals(RDF.type)) qsm.add(propStmt.getPredicate().getLocalName(), property);
+                Resource constrainedClass = stmt.getSubject();
+                Resource constraint = stmt.getResource();
+                final Query constraintQuery;
+
+                if (constraint.canAs(com.atomgraph.spinrdf.model.Query.class))
+                {
+                    com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
+                    constraintQuery = QueryFactory.create(query.getText());
+                }
+                else continue;
+
+                final QuerySolutionMap qsm;
+                if (constraint.canAs(TemplateCall.class)) qsm = constraint.as(TemplateCall.class).getInitialBinding();
+                else qsm = new QuerySolutionMap();
+
+                QueryWrapper wrapper = new QueryWrapper(constraint, constraintQuery, qsm);
+
+                if (class2Query.containsKey(constrainedClass))
+                    class2Query.get(constrainedClass).add(wrapper);
+                else
+                {
+                    List<QueryWrapper> wrapperList = new ArrayList<>();
+                    wrapperList.add(wrapper);
+                    class2Query.put(constrainedClass, wrapperList);
+                }
             }
-            constraintProps.close();
-        
-            QueryWrapper wrapper = new QueryWrapper(constraint, constraintQuery, qsm);
-            
-            if (class2Query.containsKey(constrainedClass))
-                class2Query.get(constrainedClass).add(wrapper);
-            else
-            {
-                List<QueryWrapper> wrapperList = new ArrayList<>();
-                wrapperList.add(wrapper);
-                class2Query.put(constrainedClass, wrapperList);
-            }
-            
-            //System.out.println(class2Query);
-            // SPIN template. TO-DO: SPIN query
         }
-        constraintIt.close();
+        finally
+        {
+            constraintIt.close();
+        }
         
         return class2Query;
     }
@@ -217,7 +202,7 @@ public class SPINConstraints
     }
         
     private static List<TemplateCall> getFixes(Model cm, Model model, Resource vio) {
-        List<TemplateCall> fixes = new ArrayList<TemplateCall>();
+        List<TemplateCall> fixes = new ArrayList<>();
         Iterator<Statement> fit = vio.listProperties(SPIN.fix);
         while(fit.hasNext()) {
             Statement fs = fit.next();

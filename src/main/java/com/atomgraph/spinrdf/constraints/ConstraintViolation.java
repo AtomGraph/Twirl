@@ -6,11 +6,11 @@
 package com.atomgraph.spinrdf.constraints;
 
 import com.atomgraph.spinrdf.model.TemplateCall;
+import com.atomgraph.spinrdf.vocabulary.SPIN;
 import java.util.Collection;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.spinrdf.constraints.SimplePropertyPath;
-import org.spinrdf.vocabulary.SPIN;
 
 /**
  *

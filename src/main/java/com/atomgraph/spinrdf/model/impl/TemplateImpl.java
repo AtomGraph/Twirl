@@ -8,6 +8,7 @@ package com.atomgraph.spinrdf.model.impl;
 import com.atomgraph.spinrdf.model.Argument;
 import com.atomgraph.spinrdf.model.Query;
 import com.atomgraph.spinrdf.model.Template;
+import com.atomgraph.spinrdf.vocabulary.SPIN;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -21,22 +22,22 @@ import org.apache.jena.enhanced.Implementation;
 import org.apache.jena.graph.Node;
 import org.apache.jena.graph.Triple;
 import org.apache.jena.ontology.ConversionException;
+import org.apache.jena.ontology.OntClass;
+import org.apache.jena.ontology.impl.OntClassImpl;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
-import org.apache.jena.rdf.model.impl.ResourceImpl;
 import org.apache.jena.util.iterator.ExtendedIterator;
 import org.apache.jena.vocabulary.RDF;
 import org.spinrdf.util.JenaUtil;
-import org.spinrdf.vocabulary.SPIN;
 import org.spinrdf.vocabulary.SPL;
 
 /**
  *
  * @author Martynas Jusevičius <martynas@atomgraph.com>
  */
-public class TemplateImpl extends ResourceImpl implements Template
+public class TemplateImpl extends OntClassImpl implements Template
 {
 
     public static Implementation factory = new Implementation() 
@@ -99,7 +100,7 @@ public class TemplateImpl extends ResourceImpl implements Template
         List<Argument> results = new ArrayList<>();
         StmtIterator it = null;
         try {
-            Set<Resource> classes = JenaUtil.getAllSuperClasses(this);
+            Set<OntClass> classes = listSuperClasses().toSet(); // JenaUtil.getAllSuperClasses(this);
             classes.add(this);
             for(Resource cls : classes) {
                 it = cls.listProperties(SPIN.constraint);
@@ -135,14 +136,11 @@ public class TemplateImpl extends ResourceImpl implements Template
 
     /**
      * 
-     * @param constaint is a statement whose subject is a class, and whose predicate is SPIN.constraint
+     * @param constraint is a statement whose subject is a class, and whose predicate is SPIN.constraint
      * @param results
      */
-    private void addArgumentFromConstraint(Statement constaint, List<Argument> results) {
-        if(JenaUtil.hasIndirectType(constaint.getResource(), SPL.Argument.inModel(constaint.getModel())))
-        {
-            results.add(constaint.getResource().as(Argument.class));
-        }
+    private void addArgumentFromConstraint(Statement constraint, List<Argument> results) {
+        if (constraint.getResource().canAs(Argument.class)) results.add(constraint.getResource().as(Argument.class));
     }
         
     @Override
