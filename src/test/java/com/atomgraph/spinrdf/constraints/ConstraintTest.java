@@ -3,16 +3,21 @@
  * To change this template file, choose Tools | Templates
  * and open the template in the editor.
  */
-package org.spinrdf.constraints;
+package com.atomgraph.spinrdf.constraints;
 
 import com.atomgraph.spinrdf.constraints.SPINConstraints.QueryWrapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import org.apache.jena.enhanced.BuiltinPersonalities;
+import org.apache.jena.ontology.OntModel;
+import org.apache.jena.ontology.Ontology;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.vocabulary.FOAF;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.DCTerms;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
@@ -20,6 +25,7 @@ import org.apache.jena.vocabulary.SKOS;
 import org.apache.jena.vocabulary.XSD;
 import static org.junit.Assert.assertEquals;
 import org.junit.Before;
+import org.junit.BeforeClass;
 import org.junit.Test;
 import org.spinrdf.vocabulary.SP;
 import org.spinrdf.vocabulary.SPIN;
@@ -31,72 +37,98 @@ import org.spinrdf.vocabulary.SPL;
  */
 public class ConstraintTest
 {
-    private Model ontModel;
-    private Resource cardinalityTemplate;
+    private OntModel ontModel;
+
+    @BeforeClass
+    public static void init()
+    {
+        JenaSystem.init();
+        com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
+    }
     
     @Before
     public void ontology()
     {
-        ontModel = ModelFactory.createDefaultModel();
-        Resource query = ontModel.createResource().
-                addProperty(RDF.type, SP.Ask).
-                addLiteral(SP.text, "PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>\n" +
-"PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
-"PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
-"PREFIX spin: <http://spinrdf.org/spin#>\n" +
-"\n" +
-        "CONSTRUCT {\n" +
-"    _:b0 a spin:ConstraintViolation .\n" +
-"    _:b0 spin:violationRoot ?this .\n" +
-"    _:b0 spin:violationPath ?predicate .\n" +
-"}\n" +
-"WHERE\n" +
-"  {\n" +
-"        { SELECT  (count(*) AS ?cardinality)\n" +
-"          WHERE\n" +
-"            { ?this  ?predicate  ?object \n" +
-"             # FILTER bound(?minCount) \n" +
-"            }\n" +
-"          HAVING ( ?cardinality < ?minCount )\n" +
-"        }\n" +
-"    UNION\n" +
-"        { SELECT  (count(*) AS ?cardinality)\n" +
-"          WHERE\n" +
-"            { ?this  ?predicate  ?object \n" +
-"               FILTER bound(?maxCount) \n" +
-"            }\n" +
-"          HAVING ( ?cardinality > ?maxCount )\n" +
-"        }\n" +
-"    UNION\n" +
-"      { ?this  ?predicate  ?object\n" +
-"            FILTER ( isURI(?object) || isBlank(?object) )\n" +
-"            FILTER bound(?valueType)\n" +
-"            FILTER NOT EXISTS {\n" +
-"                                ?object a ?class .\n" +
-"                                ?class (rdfs:subClassOf)* ?valueType\n" +
-"                              }\n" +
-"          }\n" +
-"    UNION\n" +
-"      { ?this  ?predicate  ?object\n" +
-"            FILTER isLiteral(?object)\n" +
-"            FILTER bound(?valueType)\n" +
-"            BIND(datatype(?object) AS ?datatype)\n" +
-"            FILTER ( ! ( ?datatype IN (?valueType, rdfs:Literal) || ( ( ! bound(?datatype) || ?datatype = rdf:langString ) && ?valueType = xsd:string ) ) )\n" +
-"      }\n" +
-"  }");
-
-        cardinalityTemplate = ontModel.createResource("http://ontology/cardinalityTemplate").
-                addProperty(RDF.type, SPIN.Template).
-                addProperty(SPIN.body, query);
+        ontModel = ModelFactory.createOntologyModel(); // OntModelSpec.OWL_MEM
+        ontModel.setDerivationLogging(true);
+        
+//        Resource query = ontModel.createResource().
+//                addProperty(RDF.type, SP.Construct).
+//                addLiteral(SP.text, "PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>\n" +
+//"PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n" +
+//"PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n" +
+//"PREFIX spin: <http://spinrdf.org/spin#>\n" +
+//"\n" +
+//        "CONSTRUCT {\n" +
+//"    _:b0 a spin:ConstraintViolation .\n" +
+//"    _:b0 spin:violationRoot ?this .\n" +
+//"    _:b0 spin:violationPath ?predicate .\n" +
+//"}\n" +
+//"WHERE\n" +
+//"  {\n" +
+//"        { SELECT  (count(*) AS ?cardinality)\n" +
+//"          WHERE\n" +
+//"            { ?this  ?predicate  ?object \n" +
+//"             # FILTER bound(?minCount) \n" +
+//"            }\n" +
+//"          HAVING ( ?cardinality < ?minCount )\n" +
+//"        }\n" +
+//"    UNION\n" +
+//"        { SELECT  (count(*) AS ?cardinality)\n" +
+//"          WHERE\n" +
+//"            { ?this  ?predicate  ?object \n" +
+//"               FILTER bound(?maxCount) \n" +
+//"            }\n" +
+//"          HAVING ( ?cardinality > ?maxCount )\n" +
+//"        }\n" +
+//"    UNION\n" +
+//"      { ?this  ?predicate  ?object\n" +
+//"            FILTER ( isURI(?object) || isBlank(?object) )\n" +
+//"            FILTER bound(?valueType)\n" +
+//"            FILTER NOT EXISTS {\n" +
+//"                                ?object a ?class .\n" +
+//"                                ?class (rdfs:subClassOf)* ?valueType\n" +
+//"                              }\n" +
+//"          }\n" +
+//"    UNION\n" +
+//"      { ?this  ?predicate  ?object\n" +
+//"            FILTER isLiteral(?object)\n" +
+//"            FILTER bound(?valueType)\n" +
+//"            BIND(datatype(?object) AS ?datatype)\n" +
+//"            FILTER ( ! ( ?datatype IN (?valueType, rdfs:Literal) || ( ( ! bound(?datatype) || ?datatype = rdf:langString ) && ?valueType = xsd:string ) ) )\n" +
+//"      }\n" +
+//"  }");
+//
+//        SPL.Attribute = ontModel.createResource("http://ontology/SPL.Attribute").
+//                addProperty(RDF.type, SPIN.Template).
+//                addProperty(SPIN.body, query);
+        
+        Ontology ontology = ontModel.createOntology("http://ontology/");
+        ontology.addImport(ResourceFactory.createResource(SP.NS));
+        ontology.addImport(ResourceFactory.createResource(SPIN.NS));
+        ontology.addImport(ResourceFactory.createResource(SPL.NS));
+        ontModel.loadImports();
         
         Resource templateConstraint = ontModel.createResource("http://ontology/bodyConstraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, SPIN.body).
                 addLiteral(SPL.minCount, 0).
                 addLiteral(SPL.maxCount, 1);
 
         ontModel.createResource(SPIN.Template.getURI()).
-                addProperty(SPIN.constraint, templateConstraint);
+                addProperty(SPIN.constraint, templateConstraint); // rdfs:subPropertyOf spin:query
+        
+//        final StmtIterator input = ontModel.listStatements(ontModel.createResource("http://ontology/bodyConstraint"), RDF.type, SP.Query);
+//        assert( input.hasNext() );
+//
+//        final Iterator<Derivation> derivations = ((InfModel)ontModel).getDerivation(input.next());
+//        assert( null != derivations );
+//        assert( derivations.hasNext() );
+//
+//        while (derivations.hasNext())
+//        {
+//            System.out.println(derivations.next());
+//        }
     }
 
     public List<ConstraintViolation> validate(Model model)
@@ -124,7 +156,7 @@ public class ConstraintTest
     public void invalidMinCount()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.minCount, 1);
         ontModel.createResource("http://ontology/class").
@@ -142,7 +174,7 @@ public class ConstraintTest
     public void invalidMaxCount()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.maxCount, 1);
         ontModel.createResource("http://ontology/class").
@@ -162,7 +194,7 @@ public class ConstraintTest
     public void invalidResourceValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, DCTerms.subject).
                 addProperty(SPL.valueType, SKOS.Concept);
         ontModel.createResource("http://ontology/class").
@@ -183,7 +215,7 @@ public class ConstraintTest
     public void invalidResourceSubClassValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, DCTerms.subject).
                 addProperty(SPL.valueType, SKOS.Concept);
         ontModel.createResource("http://ontology/class").
@@ -206,7 +238,7 @@ public class ConstraintTest
     public void validResourceValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, DCTerms.subject).
                 addProperty(SPL.valueType, SKOS.Concept);
         ontModel.createResource("http://ontology/class").
@@ -227,7 +259,7 @@ public class ConstraintTest
     public void validResourceSubClassValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, DCTerms.subject).
                 addProperty(SPL.valueType, SKOS.Concept);
         ontModel.createResource("http://ontology/class").
@@ -250,7 +282,7 @@ public class ConstraintTest
     public void validLiteralValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, DCTerms.subject).
                 addProperty(SPL.valueType, RDFS.Literal);
         ontModel.createResource("http://ontology/class").
@@ -270,7 +302,7 @@ public class ConstraintTest
     public void validStringValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addProperty(SPL.valueType, XSD.xstring);
         ontModel.createResource("http://ontology/class").
@@ -289,7 +321,7 @@ public class ConstraintTest
     public void invalidStringValueType()
     {
         Resource constraint = ontModel.createResource("http://ontology/constraint").
-                addProperty(RDF.type, cardinalityTemplate).
+                addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addProperty(SPL.valueType, XSD.xstring);
         ontModel.createResource("http://ontology/class").

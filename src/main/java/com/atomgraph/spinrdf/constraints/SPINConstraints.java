@@ -28,12 +28,11 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
-import org.spinrdf.constraints.ConstraintViolation;
 import org.spinrdf.constraints.ObjectPropertyPath;
 import org.spinrdf.constraints.SimplePropertyPath;
 import org.spinrdf.constraints.SubjectPropertyPath;
-import org.spinrdf.model.SPINFactory;
-import org.spinrdf.model.TemplateCall;
+import com.atomgraph.spinrdf.model.TemplateCall;
+import org.apache.jena.ontology.OntModel;
 import org.spinrdf.system.SPINLabels;
 import org.spinrdf.util.JenaUtil;
 import org.spinrdf.vocabulary.SP;
@@ -77,7 +76,7 @@ public class SPINConstraints
         
     }
     
-    public static Map<Resource, List<QueryWrapper>> class2Query(Model model)
+    public static Map<Resource, List<QueryWrapper>> class2Query(OntModel model)
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
                 
@@ -90,17 +89,21 @@ public class SPINConstraints
             Resource constraint = stmt.getResource();
             final Query constraintQuery;
             
-            if (constraint.hasProperty(SP.text)) // SPIN query
+            //if (constraint.hasProperty(SP.text)) // SPIN query
+            if (constraint.canAs(com.atomgraph.spinrdf.model.Query.class))
             {
-                String constraintQueryString = constraint.getProperty(SP.text).getString();
-                constraintQuery = QueryFactory.create(constraintQueryString);
+                com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
+                constraintQuery = QueryFactory.create(query.getText());
             }
             else // SPIN query template
             {
-                Resource constraintType = constraint.getPropertyResourceValue(RDF.type);
-                Resource constraintBody = constraintType.getPropertyResourceValue(SPIN.body);
-                String constraintQueryString = constraintBody.getProperty(SP.text).getString();
-                constraintQuery = QueryFactory.create(constraintQueryString);
+                //Resource constraintType = constraint.getPropertyResourceValue(RDF.type);
+                
+                TemplateCall templateCall = constraint.as(TemplateCall.class);
+                
+//                Resource constraintBody = constraintType.getPropertyResourceValue(SPIN.body);
+//                String constraintQueryString = constraintBody.getProperty(SP.text).getString();
+                constraintQuery = QueryFactory.create(templateCall.getTemplate().getBody().getText());
             }
 
             QuerySolutionMap qsm = new QuerySolutionMap();
@@ -159,95 +162,98 @@ public class SPINConstraints
         it.close();
     }
 
-	private static void addConstructedProblemReports(
-			Model cm,
-			List<ConstraintViolation> results,
-			Model model,
-			Resource atClass,
-			Resource matchRoot,
-			String label,
-			Resource source) {
-		StmtIterator it = cm.listStatements(null, RDF.type, SPIN.ConstraintViolation);
-		while(it.hasNext()) {
-			Statement s = it.nextStatement();
-			Resource vio = s.getSubject();
-			
-			Resource root = null;
-			Statement rootS = vio.getProperty(SPIN.violationRoot);
-			if(rootS != null && rootS.getObject().isResource()) {
-				root = rootS.getResource().inModel(model);
-			}
-			if(matchRoot == null || matchRoot.equals(root)) {
-				
-				Statement labelS = vio.getProperty(RDFS.label);
-				if(labelS != null && labelS.getObject().isLiteral()) {
-					label = labelS.getString();
-				}
-				else if(label == null) {
-					label = "SPIN constraint at " + SPINLabels.get().getLabel(atClass);
-				}
-				
-				List<SimplePropertyPath> paths = getViolationPaths(model, vio, root);
-				List<TemplateCall> fixes = getFixes(cm, model, vio);
-				results.add(createConstraintViolation(paths, JenaUtil.getProperty(vio, SPIN.violationValue),
-						fixes, root, label, source, JenaUtil.getPropertyResourceValue(vio, SPIN.violationLevel)));
-			}
-		}
-	}
+    private static void addConstructedProblemReports(
+            Model cm,
+            List<ConstraintViolation> results,
+            Model model,
+            Resource atClass,
+            Resource matchRoot,
+            String label,
+            Resource source) {
+        StmtIterator it = cm.listStatements(null, RDF.type, SPIN.ConstraintViolation);
+        while(it.hasNext()) {
+            Statement s = it.nextStatement();
+            Resource vio = s.getSubject();
+            
+            Resource root = null;
+            Statement rootS = vio.getProperty(SPIN.violationRoot);
+            if(rootS != null && rootS.getObject().isResource()) {
+                root = rootS.getResource().inModel(model);
+            }
+            if(matchRoot == null || matchRoot.equals(root)) {
+                
+                Statement labelS = vio.getProperty(RDFS.label);
+                if(labelS != null && labelS.getObject().isLiteral()) {
+                    label = labelS.getString();
+                }
+                else if(label == null) {
+                    label = "SPIN constraint at " + SPINLabels.get().getLabel(atClass);
+                }
+                
+                List<SimplePropertyPath> paths = getViolationPaths(model, vio, root);
+                List<TemplateCall> fixes = getFixes(cm, model, vio);
+                                
+                RDFNode value = vio.getRequiredProperty(SPIN.violationValue).getObject();
+                Resource level = vio.getPropertyResourceValue(SPIN.violationLevel);
+                                
+                results.add(createConstraintViolation(paths, value, fixes, root, label, source, level));
+            }
+        }
+    }
         
-	private static ConstraintViolation createConstraintViolation(Collection<SimplePropertyPath> paths,
-			RDFNode value,
-			Collection<TemplateCall> fixes, 
-			Resource instance, 
-			String message, 
-			Resource source,
-			Resource level) {
-		ConstraintViolation result = new ConstraintViolation(instance, paths, fixes, message, source);
-		result.setValue(value);
-		result.setLevel(level);
-		return result;
-	}
+    private static ConstraintViolation createConstraintViolation(Collection<SimplePropertyPath> paths,
+            RDFNode value,
+            Collection<TemplateCall> fixes, 
+            Resource instance, 
+            String message, 
+            Resource source,
+            Resource level) {
+        ConstraintViolation result = new ConstraintViolation(instance, paths, fixes, message, source);
+        result.setValue(value);
+        result.setLevel(level);
+        return result;
+    }
         
-	private static List<TemplateCall> getFixes(Model cm, Model model, Resource vio) {
-		List<TemplateCall> fixes = new ArrayList<TemplateCall>();
-		Iterator<Statement> fit = vio.listProperties(SPIN.fix);
-		while(fit.hasNext()) {
-			Statement fs = fit.next();
-			if(fs.getObject().isResource()) {
-				MultiUnion union = JenaUtil.createMultiUnion(new Graph[] {
-						model.getGraph(),
-						cm.getGraph()
-				});
-				Model unionModel = ModelFactory.createModelForGraph(union);
-				Resource r = fs.getResource().inModel(unionModel);
-				TemplateCall fix = SPINFactory.asTemplateCall(r);
-				fixes.add(fix);
-			}
-		}
-		return fixes;
-	}
+    private static List<TemplateCall> getFixes(Model cm, Model model, Resource vio) {
+        List<TemplateCall> fixes = new ArrayList<TemplateCall>();
+        Iterator<Statement> fit = vio.listProperties(SPIN.fix);
+        while(fit.hasNext()) {
+            Statement fs = fit.next();
+            if(fs.getObject().isResource()) {
+                MultiUnion union = JenaUtil.createMultiUnion(new Graph[] {
+                        model.getGraph(),
+                        cm.getGraph()
+                });
+                Model unionModel = ModelFactory.createModelForGraph(union);
+                Resource r = fs.getResource().inModel(unionModel);
+                TemplateCall fix = r.as(TemplateCall.class);
+                fixes.add(fix);
+            }
+        }
+        return fixes;
+    }
         
-	private static List<SimplePropertyPath> getViolationPaths(Model model, Resource vio, Resource root) {
-		List<SimplePropertyPath> paths = new ArrayList<SimplePropertyPath>();
-		StmtIterator pit = vio.listProperties(SPIN.violationPath);
-		while(pit.hasNext()) {
-			Statement p = pit.nextStatement();
-			if(p.getObject().isURIResource()) {
-				Property predicate = model.getProperty(p.getResource().getURI());
-				paths.add(new ObjectPropertyPath(root, predicate));
-			}
-			else if(p.getObject().isAnon()) {
-				Resource path = p.getResource();
-				if(path.hasProperty(RDF.type, SP.ReversePath)) {
-					Statement reverse = path.getProperty(SP.path);
-					if(reverse != null && reverse.getObject().isURIResource()) {
-						Property predicate = model.getProperty(reverse.getResource().getURI());
-						paths.add(new SubjectPropertyPath(root, predicate));
-					}
-				}
-			}
-		}
-		return paths;
-	}
+    private static List<SimplePropertyPath> getViolationPaths(Model model, Resource vio, Resource root) {
+        List<SimplePropertyPath> paths = new ArrayList<>();
+        StmtIterator pit = vio.listProperties(SPIN.violationPath);
+        while(pit.hasNext()) {
+            Statement p = pit.nextStatement();
+            if(p.getObject().isURIResource()) {
+                Property predicate = model.getProperty(p.getResource().getURI());
+                paths.add(new ObjectPropertyPath(root, predicate));
+            }
+            else if(p.getObject().isAnon()) {
+                Resource path = p.getResource();
+                if(path.hasProperty(RDF.type, SP.ReversePath)) {
+                    Statement reverse = path.getProperty(SP.path);
+                    if(reverse != null && reverse.getObject().isURIResource()) {
+                        Property predicate = model.getProperty(reverse.getResource().getURI());
+                        paths.add(new SubjectPropertyPath(root, predicate));
+                    }
+                }
+            }
+        }
+        return paths;
+    }
         
 }

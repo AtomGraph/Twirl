@@ -14,27 +14,11 @@
 @prefix spl: <http://spinrdf.org/spl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
-arg:class
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:instance
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:max
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
 arg:maxCount
   a rdf:Property ;
   rdfs:subPropertyOf sp:arg ;
 .
 arg:maxLength
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:min
   a rdf:Property ;
   rdfs:subPropertyOf sp:arg ;
 .
@@ -46,26 +30,7 @@ arg:minLength
   a rdf:Property ;
   rdfs:subPropertyOf sp:arg ;
 .
-arg:otherProperty
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:pattern
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:property
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:type
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
-arg:uriStart
-  a rdf:Property ;
-  rdfs:subPropertyOf sp:arg ;
-.
+
 <http://spinrdf.org/spl>
   a spin:LibraryOntology ;
   a owl:Ontology ;
@@ -76,48 +41,51 @@ arg:uriStart
 .
 spl:Argument
   a spin:ConstructTemplate ;
-  spin:text """PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>
+  spin:body [ a sp:Construct ;
+    sp:text """PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>
+PREFIX  afn:  <http://jena.apache.org/ARQ/function#>
 PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>
 PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX  spin: <http://spinrdf.org/spin#>
 
-CONSTRUCT {
-    _:b0 a spin:ConstraintViolation .
-    _:b0 spin:violationRoot ?this .
-    _:b0 spin:violationPath ?predicate .
-}
+CONSTRUCT 
+  { 
+    _:c0 rdf:type spin:ConstraintViolation .
+    _:c0 spin:violationRoot ?this .
+    _:c0 spin:violationPath ?predicate .
+    _:c0 spin:violationValue ?value .
+    _:c0 rdfs:label ?label .
+  }
 WHERE
-  {   { SELECT  (count(*) AS ?cardinality)
-        WHERE
-          { ?this  ?predicate  ?object
-            FILTER bound(?minCount)
+  {   { FILTER ( ( ! bound(?optional) ) || ( ?optional = false ) )
+        FILTER NOT EXISTS { ?this  ?predicate  ?value }
+        # FILTER isIRI(?this)
+        BIND(concat("Missing value for argument ", afn:localname(?predicate)) AS ?label)
+      }
+    UNION
+      { FILTER bound(?valueType)
+          { ?this  ?predicate  ?value
+            # FILTER isIRI(?this)
+            FILTER ( isURI(?value) || isBlank(?value) )
+            FILTER bound(?valueType)
+            FILTER ( ( ?valueType != rdfs:Resource ) || isLiteral(?value) )
+            FILTER NOT EXISTS { ?value  rdf:type  ?class .
+                                ?class (rdfs:subClassOf)* ?valueType
+                              }
           }
-        HAVING ( ?cardinality < ?minCount )
+        UNION
+          { ?this  ?predicate  ?value
+            # FILTER isIRI(?this)
+            FILTER isLiteral(?value)
+            FILTER bound(?valueType)
+            FILTER ( ( ?valueType != rdfs:Resource ) || isLiteral(?value) )
+            BIND(datatype(?value) AS ?datatype)
+            FILTER ( ! ( ( ?datatype IN (?valueType, rdfs:Literal) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )
+          }
+        BIND(concat("Incorrect type of argument ", afn:localname(?predicate), " (expected: ", afn:localname(?valueType), ")") AS ?label)
       }
-    UNION
-      { { SELECT  (count(*) AS ?cardinality)
-          WHERE
-            { ?this  ?predicate  ?object
-              FILTER bound(?maxCount)
-            }
-          HAVING ( ?cardinality > ?maxCount )
-        }
-      }
-    UNION
-      { ?this  ?predicate  ?object
-        FILTER ( isURI(?object) || isBlank(?object) )
-        FILTER bound(?valueType)
-        FILTER NOT EXISTS { ?object  rdf:type  ?class .
-                            ?class (rdfs:subClassOf)* ?valueType
-                          }
-      }
-    UNION
-      { ?this  ?predicate  ?object
-        FILTER isLiteral(?object)
-        FILTER bound(?valueType)
-        BIND(datatype(?object) AS ?datatype)
-        FILTER ( ! ( ( ?datatype IN (?valueType, rdfs:Literal) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )
-      }
-  }""" ;
+  }""" 
+  ] ;
   spin:constraint [
       a spl:Argument ;
       spl:optional true ;
@@ -155,6 +123,112 @@ WHERE
   rdfs:comment "Provides metadata about an argument of a SPIN Function or Template. Arguments wrap a given rdf:Property (predicate) and specify its value type and whether the argument is optional. When used as spin:constraint, the body of this template will verify that a non-optional value exists and that it has the specified value type. Arguments that have been declared spl:optional true become optional if the type of ?this is spl:UnionTemplate. " ;
   rdfs:label "Argument" ;
   rdfs:subClassOf spin:ConstructTemplates ;
+.
+spl:Attribute
+  a spin:ConstructTemplate ;
+  spin:body [
+      a sp:Construct ;
+      sp:text """PREFIX  xsd:  <http://www.w3.org/2001/XMLSchema#>
+  PREFIX  rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+  PREFIX  rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+  PREFIX spin: <http://spinrdf.org/spin#>
+
+  CONSTRUCT {
+      _:b0 a spin:ConstraintViolation .
+      _:b0 spin:violationRoot ?this .
+      _:b0 spin:violationPath ?predicate .
+      _:b0 spin:violationValue ?object .
+  }
+  WHERE
+    {   { SELECT  (count(*) AS ?cardinality)
+          WHERE
+            { ?this  ?predicate  ?object
+              FILTER bound(?minCount)
+            }
+          HAVING ( ?cardinality < ?minCount )
+        }
+      UNION
+        { { SELECT  (count(*) AS ?cardinality)
+            WHERE
+              { ?this  ?predicate  ?object
+                FILTER bound(?maxCount)
+              }
+            HAVING ( ?cardinality > ?maxCount )
+          }
+        }
+      UNION
+        { ?this  ?predicate  ?object
+          FILTER ( isURI(?object) || isBlank(?object) )
+          FILTER bound(?valueType)
+          FILTER NOT EXISTS { ?object  rdf:type  ?class .
+                              ?class (rdfs:subClassOf)* ?valueType
+                            }
+        }
+      UNION
+        { ?this  ?predicate  ?object
+          FILTER isLiteral(?object)
+          FILTER bound(?valueType)
+          BIND(datatype(?object) AS ?datatype)
+          FILTER ( ! ( ( ?datatype IN (?valueType, rdfs:Literal) ) || ( ( ( ! bound(?datatype) ) || ( ?datatype = rdf:langString ) ) && ( ?valueType = xsd:string ) ) ) )
+        }
+    }"""
+    ] ;
+  spin:constraint [
+      a spl:Argument ;
+      spl:optional true ;
+      spl:predicate spl:defaultValue ;
+      rdfs:comment "the default value of the attribute" ;
+    ] ;
+  spin:constraint [
+      a spl:Argument ;
+      spl:optional true ;
+      spl:predicate spl:maxCount ;
+      spl:valueType xsd:integer ;
+      rdfs:comment "the maximum number of values permitted for the property" ;
+    ] ;
+  spin:constraint [
+      a spl:Argument ;
+      spl:optional true ;
+      spl:predicate spl:minCount ;
+      spl:valueType xsd:integer ;
+      rdfs:comment "the minimum number of values permitted for the property" ;
+    ] ;
+  spin:constraint [
+      a spl:Argument ;
+      spl:optional true ;
+      spl:predicate spl:valueType ;
+      spl:valueType rdfs:Class ;
+      rdfs:comment "the type that all values of the property must have" ;
+    ] ;
+  spin:constraint [
+      a spl:Argument ;
+      spl:optional true ;
+      spl:predicate rdfs:comment ;
+      spl:valueType xsd:string ;
+      rdfs:comment "a comment describing the meaning of this attribute" ;
+    ] ;
+  spin:constraint [
+      a spl:Argument ;
+      spl:predicate spl:predicate ;
+      spl:valueType rdf:Property ;
+      rdfs:comment "the RDF property holding the attribute value" ;
+    ] ;
+  spin:labelTemplate "Attribute {?predicate} : {?valueType} [{?minCount},{?maxCount}]" ;
+  rdfs:comment """Defines an \"attribute\" of a class. Attribute definitions bundle common modeling patterns known from object-oriented languages like UML. Each attribute can have min and max cardinality, a value type and a default value. The attribute links a class with one RDF property. This template should be used as spin:constraints on a class to make sure that classes meet the expected cardinalities and valueType constraints.
+If a model wants to use spl:defaultValue, then it should instantiate the spl:ConstructDefaultValues as a spin:constructor at some root class, such as rdfs:Resource.""" ;
+  rdfs:label "Attribute" ;
+  rdfs:subClassOf spin:ConstructTemplates ;
+.
+spl:optional
+  rdf:type rdf:Property ;
+  rdfs:label "optional"^^xsd:string ;
+  rdfs:range xsd:boolean ;
+  rdfs:subPropertyOf sp:arg ;
+.
+spl:predicate
+  rdf:type rdf:Property ;
+  rdfs:label "predicate"^^xsd:string ;
+  rdfs:subPropertyOf sp:arg ;
 .
 spl:valueType
   a rdf:Property ;
