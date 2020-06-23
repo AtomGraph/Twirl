@@ -7,6 +7,7 @@ package com.atomgraph.spinrdf.model.impl;
 
 import com.atomgraph.spinrdf.model.Template;
 import com.atomgraph.spinrdf.model.TemplateCall;
+import com.atomgraph.spinrdf.vocabulary.SP;
 import java.util.HashMap;
 import java.util.Map;
 import org.apache.jena.enhanced.EnhGraph;
@@ -21,7 +22,6 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.rdf.model.impl.ResourceImpl;
 import org.apache.jena.vocabulary.RDF;
-import org.spinrdf.vocabulary.SP;
 
 /**
  *
@@ -42,7 +42,7 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
             }
             else
             {
-                throw new ConversionException( "Cannot convert node " + node.toString() + " to Argument: it does not have rdf:type sp:Command or equivalent");
+                throw new ConversionException( "Cannot convert node " + node.toString() + " to Command: it does not have rdf:type sp:Command or equivalent");
             }
         }
 
@@ -68,11 +68,6 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
             return getProperty(SP.text).getString();
         else
             return getTemplate().getBody().getText();
-//        {
-//            ParameterizedSparqlString pss = new ParameterizedSparqlString(getTemplate().getBody().getText());
-//            pss.setParams(getInitialBinding());
-//            return pss.toString();
-//        }
     }
     
     @Override
@@ -84,11 +79,7 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
             while (it.hasNext())
             {
                 Statement s = it.next();
-//                if(s.getObject().isURIResource()) {
-//                    List<Resource> superTypes = com.atomgraph.spinrdf.util.JenaUtil.getSuperClasses(s.getResource());
-//                    for (Resource type : superTypes)
-//                        if (type.canAs(Template.class)) return type.as(Template.class);
-//                }
+
                 if (s.getObject().canAs(Template.class)) return s.getObject().as(Template.class);
             }
         }

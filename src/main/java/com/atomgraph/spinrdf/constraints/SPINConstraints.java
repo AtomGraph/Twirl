@@ -5,6 +5,7 @@
  */
 package com.atomgraph.spinrdf.constraints;
 
+import com.atomgraph.spinrdf.model.TemplateCall;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -28,10 +29,6 @@ import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
-import org.spinrdf.constraints.ObjectPropertyPath;
-import org.spinrdf.constraints.SimplePropertyPath;
-import org.spinrdf.constraints.SubjectPropertyPath;
-import com.atomgraph.spinrdf.model.TemplateCall;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import org.apache.jena.ontology.OntModel;

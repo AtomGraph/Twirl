@@ -10,7 +10,6 @@ import com.atomgraph.spinrdf.vocabulary.SPIN;
 import java.util.Collection;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
-import org.spinrdf.constraints.SimplePropertyPath;
 
 /**
  *
@@ -19,17 +18,17 @@ import org.spinrdf.constraints.SimplePropertyPath;
 public class ConstraintViolation
 {
 
-    private Collection<TemplateCall> fixes;
+    private final Collection<TemplateCall> fixes;
     
     private Resource level;
     
-    private String message;
+    private final String message;
     
-    private Collection<SimplePropertyPath> paths;
+    private final Collection<SimplePropertyPath> paths;
     
-    private Resource root;
+    private final Resource root;
     
-    private Resource source;
+    private final Resource source;
     
     private RDFNode value;
     
@@ -47,7 +46,8 @@ public class ConstraintViolation
                 Collection<SimplePropertyPath> paths,
                 Collection<TemplateCall> fixes,
                 String message,
-                Resource source) {
+                Resource source)
+    {
         this.fixes = fixes;
         this.message = message;
         this.root = root;
@@ -56,27 +56,32 @@ public class ConstraintViolation
     }
     
     
-    public Collection<TemplateCall> getFixes() {
+    public Collection<TemplateCall> getFixes()
+    {
         return fixes;
     }
     
     
-    public Resource getLevel() {
+    public Resource getLevel()
+    {
         return level == null ? SPIN.Error : level;
     }
     
     
-    public String getMessage() {
+    public String getMessage()
+    {
         return message;
     }
     
     
-    public Collection<SimplePropertyPath> getPaths() {
+    public Collection<SimplePropertyPath> getPaths()
+    {
         return paths;
     }
     
 
-    public Resource getRoot() {
+    public Resource getRoot()
+    {
         return root;
     }
     
@@ -85,12 +90,14 @@ public class ConstraintViolation
      * Gets the SPIN Query or template call that has caused this violation.
      * @return the source (code should be robust against null values)
      */
-    public Resource getSource() {
+    public Resource getSource()
+    {
         return source;
     }
     
     
-    public RDFNode getValue() {
+    public RDFNode getValue()
+    {
         return value;
     }
     
@@ -99,17 +106,20 @@ public class ConstraintViolation
      * Checks if this represents an Error or Fatal.
      * @return true if Error or Fatal
      */
-    public boolean isError() {
+    public boolean isError()
+    {
         return SPIN.Error.equals(getLevel()) || SPIN.Fatal.equals(getLevel());
     }
     
     
-    public void setLevel(Resource level) {
+    public void setLevel(Resource level)
+    {
         this.level = level;
     }
     
     
-    public void setValue(RDFNode value) {
+    public void setValue(RDFNode value)
+    {
         this.value = value;
     }
         

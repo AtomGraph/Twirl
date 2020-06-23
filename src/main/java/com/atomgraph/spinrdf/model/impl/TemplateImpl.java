@@ -20,7 +20,6 @@ import org.apache.jena.enhanced.EnhGraph;
 import org.apache.jena.enhanced.EnhNode;
 import org.apache.jena.enhanced.Implementation;
 import org.apache.jena.graph.Node;
-import org.apache.jena.graph.Triple;
 import org.apache.jena.ontology.ConversionException;
 import org.apache.jena.ontology.OntClass;
 import org.apache.jena.ontology.impl.OntClassImpl;
@@ -28,10 +27,7 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
-import org.apache.jena.util.iterator.ExtendedIterator;
 import org.apache.jena.vocabulary.RDF;
-import org.spinrdf.util.JenaUtil;
-import org.spinrdf.vocabulary.SPL;
 
 /**
  *
@@ -61,24 +57,7 @@ public class TemplateImpl extends OntClassImpl implements Template
         {
             if (eg == null) throw new IllegalArgumentException("EnhGraph cannot be null");
 
-            if (eg.asGraph().contains(node, RDF.type.asNode(), SPIN.Template.asNode())) return true;
-            
-            //JenaUtil.hasIndirectType(node, SPIN.Template.inModel(model))
-            ExtendedIterator<Triple> it = eg.asGraph().find(null, RDF.type.asNode(), null);
-            try
-            {
-                while (it.hasNext())
-                {
-                    Triple triple = it.next();
-                    triple.getObject();
-                }
-            }
-            finally
-            {
-                it.close();
-            }
-            
-            return false;
+            return (eg.asGraph().contains(node, RDF.type.asNode(), SPIN.Template.asNode()));
         }
         
     };
@@ -118,6 +97,7 @@ public class TemplateImpl extends OntClassImpl implements Template
         
         if(ordered) {
             Collections.sort(results, new Comparator<Argument>() {
+                @Override
                 public int compare(    Argument o1,     Argument o2) {
                     Property p1 = o1.getPredicate();
                     Property p2 = o2.getPredicate();
