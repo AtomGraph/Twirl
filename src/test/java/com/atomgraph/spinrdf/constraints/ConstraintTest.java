@@ -73,12 +73,12 @@ public class ConstraintTest
     {
         List<ConstraintViolation> cvs = new ArrayList<>();
         
-        Map<Resource, List<QueryWrapper>> class2Query = com.atomgraph.spinrdf.constraints.SPINConstraints.class2Query(ontModel);
+        Map<Resource, List<QueryWrapper>> class2Query = SPINConstraints.class2Query(ontModel);
         for (Resource cls : class2Query.keySet())
         {
             List<QueryWrapper> wrappers = class2Query.get(cls);
             for (QueryWrapper wrapper : wrappers)
-                com.atomgraph.spinrdf.constraints.SPINConstraints.runQueryOnClass(cvs, wrapper, cls, model);
+                SPINConstraints.runQueryOnClass(cvs, wrapper, cls, model);
         }
         
         return cvs;
@@ -87,8 +87,6 @@ public class ConstraintTest
     @Test
     public void validateSystem()
     {
-        System.out.println(validate(ontModel));
-        
         assertEquals(0, validate(ontModel).size());
     }
     

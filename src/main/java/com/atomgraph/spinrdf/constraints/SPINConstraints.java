@@ -141,7 +141,6 @@ public class SPINConstraints
             Resource instance = it.next();
 
             qsm.add(SPIN.THIS_VAR_NAME, instance);
-            System.out.println(qsm);
           
             try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
             {
