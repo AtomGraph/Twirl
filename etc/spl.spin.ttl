@@ -33,7 +33,7 @@ PREFIX  spin: <http://spinrdf.org/spin#>
 
 CONSTRUCT 
   { 
-    _:c0 rdf:type spin:ConstraintViolation .
+    _:c0 a spin:ConstraintViolation .
     _:c0 spin:violationRoot ?this .
     _:c0 spin:violationPath ?predicate .
     _:c0 spin:violationValue ?value .

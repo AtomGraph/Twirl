@@ -1,7 +1,18 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  See the NOTICE file distributed with this work for additional
+ *  information regarding copyright ownership.
  */
 package com.atomgraph.spinrdf.constraints;
 
@@ -32,8 +43,6 @@ import org.apache.jena.vocabulary.RDFS;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import org.apache.jena.ontology.OntModel;
-import org.spinrdf.system.SPINLabels;
-import org.spinrdf.util.JenaUtil;
 
 /**
  *
@@ -161,17 +170,17 @@ public class SPINConstraints
             
             Resource root = null;
             Statement rootS = vio.getProperty(SPIN.violationRoot);
-            if(rootS != null && rootS.getObject().isResource()) {
+            if (rootS != null && rootS.getObject().isResource()) {
                 root = rootS.getResource().inModel(model);
             }
-            if(matchRoot == null || matchRoot.equals(root)) {
+            if (matchRoot == null || matchRoot.equals(root)) {
                 
                 Statement labelS = vio.getProperty(RDFS.label);
-                if(labelS != null && labelS.getObject().isLiteral()) {
+                if (labelS != null && labelS.getObject().isLiteral()) {
                     label = labelS.getString();
                 }
-                else if(label == null) {
-                    label = "SPIN constraint at " + SPINLabels.get().getLabel(atClass);
+                else if (label == null) {
+                    label = "SPIN constraint at " + getLabel(atClass);
                 }
                 
                 List<SimplePropertyPath> paths = getViolationPaths(model, vio, root);
@@ -201,10 +210,11 @@ public class SPINConstraints
     private static List<TemplateCall> getFixes(Model cm, Model model, Resource vio) {
         List<TemplateCall> fixes = new ArrayList<>();
         Iterator<Statement> fit = vio.listProperties(SPIN.fix);
-        while(fit.hasNext()) {
+        while (fit.hasNext())
+        {
             Statement fs = fit.next();
             if(fs.getObject().isResource()) {
-                MultiUnion union = JenaUtil.createMultiUnion(new Graph[] {
+                MultiUnion union = new MultiUnion(new Graph[] {
                         model.getGraph(),
                         cm.getGraph()
                 });
@@ -220,9 +230,11 @@ public class SPINConstraints
     private static List<SimplePropertyPath> getViolationPaths(Model model, Resource vio, Resource root) {
         List<SimplePropertyPath> paths = new ArrayList<>();
         StmtIterator pit = vio.listProperties(SPIN.violationPath);
-        while(pit.hasNext()) {
+        while (pit.hasNext())
+        {
             Statement p = pit.nextStatement();
-            if(p.getObject().isURIResource()) {
+            if(p.getObject().isURIResource())
+            {
                 Property predicate = model.getProperty(p.getResource().getURI());
                 paths.add(new ObjectPropertyPath(root, predicate));
             }
@@ -238,6 +250,22 @@ public class SPINConstraints
             }
         }
         return paths;
+    }
+        
+    /**
+     * Gets the label for a given Resource.
+     * @param resource  the Resource to get the label of
+     * @return the label (never null)
+     */
+    public static String getLabel(Resource resource)
+    {
+        if (resource.isURIResource() && resource.getModel() != null)
+        {
+            String qname = resource.getModel().qnameFor(resource.getURI());
+            if(qname != null) return qname;
+            else return "<" + resource.getURI() + ">";
+        }
+        else return resource.toString();
     }
         
 }

@@ -1,11 +1,25 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  See the NOTICE file distributed with this work for additional
+ *  information regarding copyright ownership.
  */
 package com.atomgraph.spinrdf.constraints;
 
 import com.atomgraph.spinrdf.constraints.SPINConstraints.QueryWrapper;
+import com.atomgraph.spinrdf.vocabulary.SP;
+import com.atomgraph.spinrdf.vocabulary.SPIN;
+import com.atomgraph.spinrdf.vocabulary.SPL;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,9 +41,6 @@ import static org.junit.Assert.assertEquals;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
-import org.spinrdf.vocabulary.SP;
-import org.spinrdf.vocabulary.SPIN;
-import org.spinrdf.vocabulary.SPL;
 
 /**
  *
@@ -50,25 +61,12 @@ public class ConstraintTest
     public void ontology()
     {
         ontModel = ModelFactory.createOntologyModel();
-        //ontModel.setDerivationLogging(true);
         
         Ontology ontology = ontModel.createOntology("http://ontology/");
         ontology.addImport(ResourceFactory.createResource(SP.NS));
         ontology.addImport(ResourceFactory.createResource(SPIN.NS));
         ontology.addImport(ResourceFactory.createResource(SPL.NS));
         ontModel.loadImports();
-        
-//        final StmtIterator input = ontModel.listStatements(ontModel.createResource("http://ontology/bodyConstraint"), RDF.type, SP.Query);
-//        assert( input.hasNext() );
-//
-//        final Iterator<Derivation> derivations = ((InfModel)ontModel).getDerivation(input.next());
-//        assert( null != derivations );
-//        assert( derivations.hasNext() );
-//
-//        while (derivations.hasNext())
-//        {
-//            System.out.println(derivations.next());
-//        }
     }
 
     public List<ConstraintViolation> validate(Model model)
