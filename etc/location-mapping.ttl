@@ -7,5 +7,6 @@
    [ lm:name "http://spinrdf.org/spin#" ;                                       lm:altName "etc/spin.ttl" ] ,
    [ lm:name "http://spinrdf.org/spin" ;                                        lm:altName "etc/spin.ttl" ] ,
    [ lm:name "http://spinrdf.org/spl#" ;                                        lm:altName "etc/spl.spin.ttl" ] ,
-   [ lm:name "http://spinrdf.org/spl" ;                                         lm:altName "etc/spl.spin.ttl" ]
+   [ lm:name "http://spinrdf.org/spl" ;                                         lm:altName "etc/spl.spin.ttl" ] ,
+   [ lm:name "http://xmlns.com/foaf/0.1/" ;                                     lm:altName "etc/foaf.owl" ]
 .

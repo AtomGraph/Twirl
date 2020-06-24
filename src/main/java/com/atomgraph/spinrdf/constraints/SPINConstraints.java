@@ -82,11 +82,45 @@ public class SPINConstraints
         
     }
     
-    public static Map<Resource, List<QueryWrapper>> class2Query(OntModel model)
+    /**
+     * Checks all instances in a given Model against all spin:constraints and
+     * returns a List of constraint violations. 
+     * A ProgressMonitor can be provided to enable the user to get intermediate
+     * status reports and to cancel the operation.
+     * @param model  the Model to operate on
+     * @return a List of ConstraintViolations
+     */
+    public static List<ConstraintViolation> check(OntModel model)
+    {
+        return check(model, SPIN.constraint);
+    }
+
+    /**
+     * Checks all instances in a given Model and returns a List of constraint violations. 
+     * @param model  the Model to operate on
+     * @param predicate  the system property, e.g. a sub-property of spin:constraint
+     * @return a List of ConstraintViolations
+     */
+    public static List<ConstraintViolation> check(OntModel model, Property predicate)
+    {
+        List<ConstraintViolation> cvs = new ArrayList<>();
+        
+        Map<Resource, List<QueryWrapper>> class2Query = class2Query(model, predicate);
+        for (Resource cls : class2Query.keySet())
+        {
+            List<QueryWrapper> wrappers = class2Query.get(cls);
+            for (QueryWrapper wrapper : wrappers)
+                runQueryOnClass(cvs, wrapper, cls, model);
+        }
+        
+        return cvs;
+    }
+    
+    public static Map<Resource, List<QueryWrapper>> class2Query(OntModel model, Property predicate)
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
                 
-        StmtIterator constraintIt = model.listStatements((Resource)null, SPIN.constraint, (Resource)null);
+        StmtIterator constraintIt = model.listStatements((Resource)null, predicate, (Resource)null);
         try
         {
             while (constraintIt.hasNext())
@@ -249,6 +283,42 @@ public class SPINConstraints
             }
         }
         return paths;
+    }
+        
+    /**
+     * Creates an RDF representation (instances of spin:ConstraintViolation) from a
+     * collection of ConstraintViolation Java objects. 
+     * @param cvs  the violation objects
+     * @param result  the Model to add the results to
+     * @param createSource  true to also create the spin:violationSource
+     */
+    public static void addConstraintViolationsRDF(List<ConstraintViolation> cvs, Model result, boolean createSource)
+    {
+        for(ConstraintViolation cv : cvs)
+        {
+            Resource r = result.createResource(SPIN.ConstraintViolation);
+            String message = cv.getMessage();
+            if (message != null && message.length() > 0) r.addProperty(RDFS.label, message);
+            if (cv.getRoot() != null) r.addProperty(SPIN.violationRoot, cv.getRoot());
+            r.addProperty(SPIN.violationLevel, cv.getLevel());
+            
+            for(SimplePropertyPath path : cv.getPaths())
+            {
+                if(path instanceof ObjectPropertyPath)
+                {
+                    r.addProperty(SPIN.violationPath, path.getPredicate());
+                }
+                else
+                {
+                    Resource p = result.createResource(SP.ReversePath);
+                    p.addProperty(SP.path, path.getPredicate());
+                    r.addProperty(SPIN.violationPath, p);
+                }
+            }
+            
+            if (createSource && cv.getSource() != null) r.addProperty(SPIN.violationSource, cv.getSource());
+            if (cv.getValue() != null) r.addProperty(SPIN.violationValue, cv.getValue());
+        }
     }
         
     /**
