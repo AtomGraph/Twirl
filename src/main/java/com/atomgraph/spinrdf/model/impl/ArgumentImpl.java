@@ -52,7 +52,7 @@ public class ArgumentImpl extends ResourceImpl implements Argument
             }
             else
             {
-                throw new ConversionException( "Cannot convert node " + node.toString() + " to Argument: it does not have rdf:type spl:Argument or equivalent");
+                throw new ConversionException("Cannot convert node " + node.toString() + " to Argument: it does not have rdf:type spl:Argument or equivalent");
             }
         }
 

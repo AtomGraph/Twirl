@@ -38,6 +38,7 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.shared.PropertyNotFoundException;
 import org.apache.jena.vocabulary.RDF;
 
 /**
@@ -59,7 +60,7 @@ public class TemplateImpl extends OntClassImpl implements Template
             }
             else
             {
-                throw new ConversionException( "Cannot convert node " + node.toString() + " to Template: it does not have rdf:type spin:Template or equivalent");
+                throw new ConversionException("Cannot convert node " + node.toString() + " to Template: it does not have rdf:type spin:Template or equivalent");
             }
         }
 
@@ -81,7 +82,10 @@ public class TemplateImpl extends OntClassImpl implements Template
     @Override
     public Query getBody()
     {
-        return getRequiredProperty(SPIN.body).getResource().as(Query.class);
+        if (getPropertyResourceValue(SPIN.body) != null)
+            return getPropertyResourceValue(SPIN.body).as(Query.class);
+        
+        throw new PropertyNotFoundException(SPIN.body);
     }
 
     @Override
@@ -137,7 +141,7 @@ public class TemplateImpl extends OntClassImpl implements Template
     @Override
     public Map<String, Argument> getArgumentsMap()
     {
-        Map<String,    Argument> results = new HashMap<>();
+        Map<String, Argument> results = new HashMap<>();
         
         for (Argument argument : getArguments(false))
         {

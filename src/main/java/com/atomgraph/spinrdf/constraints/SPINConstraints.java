@@ -43,6 +43,7 @@ import org.apache.jena.vocabulary.RDFS;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import org.apache.jena.ontology.OntModel;
+import org.apache.jena.shared.PropertyNotFoundException;
 
 /**
  *
@@ -116,7 +117,7 @@ public class SPINConstraints
         return cvs;
     }
     
-    public static Map<Resource, List<QueryWrapper>> class2Query(OntModel model, Property predicate)
+    protected static Map<Resource, List<QueryWrapper>> class2Query(OntModel model, Property predicate)
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
                 
@@ -133,8 +134,15 @@ public class SPINConstraints
 
                 if (constraint.canAs(com.atomgraph.spinrdf.model.Query.class))
                 {
-                    com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
-                    constraintQuery = QueryFactory.create(query.getText());
+                    try
+                    {
+                        com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
+                        constraintQuery = QueryFactory.create(query.getText());
+                    }
+                    catch (PropertyNotFoundException ex)
+                    {
+                        continue;
+                    }
                 }
                 else continue;
 
@@ -162,7 +170,7 @@ public class SPINConstraints
         return class2Query;
     }
     
-    public static void runQueryOnClass(List<ConstraintViolation> cvs, QueryWrapper wrapper, Resource cls, Model model)
+    protected static void runQueryOnClass(List<ConstraintViolation> cvs, QueryWrapper wrapper, Resource cls, Model model)
     {
         QuerySolutionMap qsm = new QuerySolutionMap();
         qsm.addAll(wrapper.getQuerySolutionMap());

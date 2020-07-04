@@ -17,11 +17,17 @@
 package com.atomgraph.spinrdf.vocabulary;
 
 import com.atomgraph.spinrdf.model.Argument;
+import com.atomgraph.spinrdf.model.Command;
 import com.atomgraph.spinrdf.model.Query;
 import com.atomgraph.spinrdf.model.Template;
+import com.atomgraph.spinrdf.model.TemplateCall;
 import com.atomgraph.spinrdf.model.impl.ArgumentImpl;
+import com.atomgraph.spinrdf.model.impl.CommandImpl;
 import com.atomgraph.spinrdf.model.impl.QueryImpl;
+import com.atomgraph.spinrdf.model.impl.TemplateCallImpl;
 import com.atomgraph.spinrdf.model.impl.TemplateImpl;
+import com.atomgraph.spinrdf.model.update.Update;
+import com.atomgraph.spinrdf.model.update.impl.UpdateImpl;
 import org.apache.jena.enhanced.BuiltinPersonalities;
 import org.apache.jena.enhanced.Personality;
 import org.apache.jena.rdf.model.Property;
@@ -282,7 +288,7 @@ public class SP
 
     public static Integer getArgPropertyIndex(String varName)
     {
-        if(varName.startsWith("arg"))
+        if (varName.startsWith("arg"))
         {
             String subString = varName.substring(3);
             try
@@ -304,9 +310,12 @@ public class SP
     
     public static void init(Personality<RDFNode> p)
     {
-        p.add(Argument.class, ArgumentImpl.factory);
-        p.add(Query.class, QueryImpl.factory);
         p.add(Template.class, TemplateImpl.factory);
+        p.add(Argument.class, ArgumentImpl.factory);
+        p.add(TemplateCall.class, TemplateCallImpl.factory);
+        p.add(Command.class, CommandImpl.factory);
+        p.add(Query.class, QueryImpl.factory);
+        p.add(Update.class, UpdateImpl.factory);
     }
     
 }

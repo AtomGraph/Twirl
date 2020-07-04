@@ -32,6 +32,7 @@ import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
 import org.apache.jena.rdf.model.impl.ResourceImpl;
+import org.apache.jena.shared.PropertyNotFoundException;
 import org.apache.jena.vocabulary.RDF;
 
 /**
@@ -53,7 +54,7 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
             }
             else
             {
-                throw new ConversionException( "Cannot convert node " + node.toString() + " to Command: it does not have rdf:type sp:Command or equivalent");
+                throw new ConversionException("Cannot convert node " + node.toString() + " to Command: it does not have rdf:type sp:Command or equivalent");
             }
         }
 
@@ -75,10 +76,12 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
     @Override
     public String getText()
     {
-        if (hasProperty(SP.text))
-            return getProperty(SP.text).getString();
-        else
-            return getTemplate().getBody().getText();
+        if (hasProperty(SP.text)) return getProperty(SP.text).getString();
+        
+        Template template = getTemplate();
+        if (template != null) return template.getBody().getText();
+        
+        throw new PropertyNotFoundException(SP.text);
     }
     
     @Override
@@ -125,12 +128,14 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
     public QuerySolutionMap getInitialBinding()
     {
         QuerySolutionMap map = new QuerySolutionMap();
+        
         Map<String,RDFNode> input = getArgumentsMapByVarNames();
         input.keySet().forEach((varName) ->
         {
             RDFNode value = input.get(varName);
             map.add(varName, value);
         });
+        
         return map;
     }
     
@@ -139,20 +144,21 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
         Map<String,RDFNode> map = new HashMap<>();
         Template template = getTemplate();
         
-        template.getArguments(false).forEach((ad) ->
-        {
-            Property argProperty = ad.getPredicate();
-            if (argProperty != null) {
-                String varName = ad.getVarName();
-                Statement valueS = getProperty(argProperty);
-                if(valueS != null) {
-                    map.put(varName, valueS.getObject());
+        if (template != null)
+            template.getArguments(false).forEach((ad) ->
+            {
+                Property argProperty = ad.getPredicate();
+                if (argProperty != null) {
+                    String varName = ad.getVarName();
+                    Statement valueS = getProperty(argProperty);
+                    if(valueS != null) {
+                        map.put(varName, valueS.getObject());
+                    }
+                    else if(ad.getDefaultValue() != null) {
+                        map.put(varName, ad.getDefaultValue());
+                    }
                 }
-                else if(ad.getDefaultValue() != null) {
-                    map.put(varName, ad.getDefaultValue());
-                }
-            }
-        });
+            });
         
         return map;
     }

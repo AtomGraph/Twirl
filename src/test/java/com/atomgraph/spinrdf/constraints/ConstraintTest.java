@@ -23,6 +23,7 @@ import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.enhanced.BuiltinPersonalities;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.Ontology;
+import org.apache.jena.query.QueryParseException;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
@@ -42,20 +43,31 @@ import org.junit.Test;
  */
 public class ConstraintTest
 {
+    private static final int SYSTEM_CONSTRAINT_COUNT = 9;
+    
     private OntModel ontModel;
     private Ontology ontology;
 
+    static
+    {
+        JenaSystem.init();
+    }
+    
     @BeforeClass
     public static void init()
     {
-        JenaSystem.init();
         com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
+    }
+    
+    public OntModel getOntModel()
+    {
+        return ModelFactory.createOntologyModel();
     }
     
     @Before
     public void ontology()
     {
-        ontModel = ModelFactory.createOntologyModel();
+        ontModel = getOntModel();
         
         ontology = ontModel.createOntology("http://ontology/");
         ontology.addImport(ResourceFactory.createResource(SP.NS));
@@ -69,6 +81,47 @@ public class ConstraintTest
     public void validateSystem()
     {
         assertEquals(0, SPINConstraints.check(ontModel).size());
+    }
+    
+    public void countSystemConstraints()
+    {
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size());
+    }
+    
+    @Test
+    public void missingTemplateBody()
+    {
+        Resource template = ontModel.createIndividual("http://ontology/template", SPIN.Template);
+        Resource constraint = ontModel.createIndividual("http://ontology/constraint", template);
+        ontModel.createIndividual("http://ontology/class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size()); // constraint ignored
+    }
+
+    @Test
+    public void missingQueryText()
+    {
+        Resource template = ontModel.createIndividual("http://ontology/template", SPIN.Template);
+        Resource constraint = ontModel.createIndividual("http://ontology/template", template).
+                addProperty(SPIN.body, ontModel.createIndividual(SP.Construct));
+        ontModel.createIndividual("http://ontology/class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size()); // constraint ignored
+    }
+
+    @Test(expected = QueryParseException.class)
+    public void queryTextSyntaxError()
+    {
+        Resource template = ontModel.createIndividual("http://ontology/template", SPIN.Template).
+                addProperty(SPIN.body, ontModel.createIndividual(SP.Construct).
+                        addProperty(SP.text, "not SPARQL"));
+        Resource constraint = ontModel.createIndividual("http://ontology/template", template);
+        ontModel.createIndividual("http://ontology/class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size());
     }
     
     @Test

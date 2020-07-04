@@ -14,25 +14,25 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
-package com.atomgraph.spinrdf.model.impl;
+package com.atomgraph.spinrdf.model.update.impl;
 
+import com.atomgraph.spinrdf.model.impl.CommandImpl;
+import com.atomgraph.spinrdf.model.update.Update;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import org.apache.jena.enhanced.EnhGraph;
 import org.apache.jena.enhanced.EnhNode;
 import org.apache.jena.enhanced.Implementation;
 import org.apache.jena.graph.Node;
 import org.apache.jena.ontology.ConversionException;
-import org.apache.jena.query.Query;
-import org.apache.jena.query.QueryFactory;
 import org.apache.jena.vocabulary.RDF;
 
 /**
  *
  * @author Martynas Jusevičius <martynas@atomgraph.com>
  */
-public class QueryImpl extends CommandImpl implements com.atomgraph.spinrdf.model.Query
+public class UpdateImpl extends CommandImpl implements Update
 {
-
+    
     public static Implementation factory = new Implementation() 
     {
         
@@ -41,11 +41,11 @@ public class QueryImpl extends CommandImpl implements com.atomgraph.spinrdf.mode
         {
             if (canWrap(node, enhGraph))
             {
-                return new QueryImpl(node, enhGraph);
+                return new UpdateImpl(node, enhGraph);
             }
             else
             {
-                throw new ConversionException("Cannot convert node " + node.toString() + " to Query: it does not have rdf:type sp:Query or equivalent");
+                throw new ConversionException( "Cannot convert node " + node.toString() + " to Update: it does not have rdf:type sp:Update or equivalent");
             }
         }
 
@@ -54,20 +54,14 @@ public class QueryImpl extends CommandImpl implements com.atomgraph.spinrdf.mode
         {
             if (eg == null) throw new IllegalArgumentException("EnhGraph cannot be null");
 
-            return eg.asGraph().contains(node, RDF.type.asNode(), SP.Query.asNode());
+            return eg.asGraph().contains(node, RDF.type.asNode(), SP.Update.asNode());
         }
         
     };
     
-    public QueryImpl(Node node, EnhGraph graph)
+    public UpdateImpl(Node node, EnhGraph graph)
     {
         super(node, graph);
-    }
-
-    @Override
-    public Query asQuery()
-    {
-        return QueryFactory.create(getText());
     }
     
 }
