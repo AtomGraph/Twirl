@@ -42,8 +42,20 @@ import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
+import java.util.Arrays;
+import java.util.Map.Entry;
+import java.util.stream.Collectors;
+import org.apache.jena.arq.querybuilder.Converters;
+import org.apache.jena.arq.querybuilder.SelectBuilder;
+import org.apache.jena.graph.Node;
 import org.apache.jena.ontology.OntModel;
+import org.apache.jena.query.ParameterizedSparqlString;
 import org.apache.jena.shared.PropertyNotFoundException;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.engine.binding.BindingMap;
+import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps;
 
 /**
  *
@@ -57,13 +69,13 @@ public class SPINConstraints
         
         private final Resource source;
         private final Query query;
-        private final QuerySolutionMap qsm;
+        private final Map<String, RDFNode> substitutions;
         
-        public QueryWrapper(Resource source, Query query, QuerySolutionMap qsm)
+        public QueryWrapper(Resource source, Query query, Map<String, RDFNode> substitutions)
         {
             this.source = source;
             this.query = query;
-            this.qsm = qsm;
+            this.substitutions = substitutions;
         }
         
         public Resource getSource()
@@ -76,9 +88,9 @@ public class SPINConstraints
             return query;
         }
         
-        public QuerySolutionMap getQuerySolutionMap()
+        public Map<String, RDFNode> getSubstitutions()
         {
-            return qsm;
+            return substitutions;
         }
         
     }
@@ -146,11 +158,11 @@ public class SPINConstraints
                 }
                 else continue;
 
-                final QuerySolutionMap qsm;
-                if (constraint.canAs(TemplateCall.class)) qsm = constraint.as(TemplateCall.class).getInitialBinding();
-                else qsm = new QuerySolutionMap();
+                final Map<String, RDFNode> substitutions;
+                if (constraint.canAs(TemplateCall.class)) substitutions = constraint.as(TemplateCall.class).getSubstitutions();
+                else substitutions = new HashMap<>();
 
-                QueryWrapper wrapper = new QueryWrapper(constraint, constraintQuery, qsm);
+                QueryWrapper wrapper = new QueryWrapper(constraint, constraintQuery, substitutions);
 
                 if (class2Query.containsKey(constrainedClass))
                     class2Query.get(constrainedClass).add(wrapper);
@@ -172,8 +184,10 @@ public class SPINConstraints
     
     protected static void runQueryOnClass(List<ConstraintViolation> cvs, QueryWrapper wrapper, Resource cls, Model model)
     {
-        QuerySolutionMap qsm = new QuerySolutionMap();
-        qsm.addAll(wrapper.getQuerySolutionMap());
+//        SelectBuilder sb = new SelectBuilder();
+//        for (Entry<String, RDFNode> entry : wrapper.getSubstitutions().entrySet())
+//            sb.addWhereValueVar(Converters.makeVar(entry.getKey()), entry.getValue());
+//        Query valuesQuery = sb.build();
 
         Model violationModel = ModelFactory.createDefaultModel();
         
@@ -182,9 +196,20 @@ public class SPINConstraints
         {
             Resource instance = it.next();
 
-            qsm.add(SPIN.THIS_VAR_NAME, instance);
+            QuerySolutionMap qsm = new QuerySolutionMap();
+            if (instance.isURIResource()) qsm.add(SPIN.THIS_VAR_NAME, instance);
+            if (instance.isAnon()) qsm.add(SPIN.THIS_VAR_NAME, model.createResource("_:" + instance.getId()));
           
-            try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
+            Query query = QueryTransformOps.transformQuery(wrapper.getQuery(), wrapper.getSubstitutions());
+//            Query query = QueryFactory.create(wrapper.getQuery().toString()); // wrapper.getQuery().cloneQuery();
+//            List<Var> variables = wrapper.getSubstitutions().entrySet().stream().map(e -> Var.alloc(e.getKey())).collect(Collectors.toList());
+//            BindingMap bindingMap = BindingFactory.create();
+//            wrapper.getSubstitutions().entrySet().stream().forEach(e -> bindingMap.add(Var.alloc(e.getKey()), e.getValue().asNode()));
+//            List<Binding> values = Arrays.asList(bindingMap);
+//            query.setValuesDataBlock(variables, values);
+            
+            query = new ParameterizedSparqlString(query.toString(), qsm).asQuery();
+            try (QueryExecution qex = QueryExecutionFactory.create(query, model))
             {
                 qex.execConstruct(violationModel);
                 //ResultSetFormatter.out(System.out, qex.execSelect());

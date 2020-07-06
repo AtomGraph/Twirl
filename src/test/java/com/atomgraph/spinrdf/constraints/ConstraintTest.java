@@ -19,20 +19,33 @@ package com.atomgraph.spinrdf.constraints;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import com.atomgraph.spinrdf.vocabulary.SPL;
+import java.util.Collections;
+import java.util.Map;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.enhanced.BuiltinPersonalities;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.Ontology;
+import org.apache.jena.query.Query;
+import org.apache.jena.query.QueryExecution;
+import org.apache.jena.query.QueryExecutionFactory;
+import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QueryParseException;
+import org.apache.jena.query.ResultSet;
+import org.apache.jena.query.ResultSetFormatter;
+import org.apache.jena.rdf.model.AnonId;
+import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.sparql.syntax.syntaxtransform.QueryTransformOps;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -253,5 +266,27 @@ public class ConstraintTest
 
         assertEquals(1, SPINConstraints.check(ontModel).size());
     }
+    
+//    @Test
+//    public void bnodeQueryTest()
+//    {
+//        Model model = ModelFactory.createDefaultModel();
+//        Resource bnode = model.createResource().addProperty(FOAF.name, "whateverest");
+//        AnonId id = bnode.getId();
+//        
+//        Query query = QueryFactory.create("SELECT * { ?s ?p ?o }");
+////        QuerySolutionMap qsm = new QuerySolutionMap();
+////        qsm.add("s", model.createResource("_:" + id));
+//        
+//        Map<String, RDFNode> substitutions = Collections.singletonMap("s", bnode);
+//        query = QueryTransformOps.transformQuery(query, substitutions);
+//
+//        try (QueryExecution qex = QueryExecutionFactory.create(query, model))
+//        {
+//            ResultSet resultSet = qex.execSelect();
+//            ResultSetFormatter.out(System.out, resultSet);
+//            assertTrue(resultSet.hasNext());
+//        }
+//    }
     
 }

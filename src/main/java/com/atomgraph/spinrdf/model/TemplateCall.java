@@ -16,7 +16,9 @@
  */
 package com.atomgraph.spinrdf.model;
 
+import java.util.Map;
 import org.apache.jena.query.QuerySolutionMap;
+import org.apache.jena.rdf.model.RDFNode;
 
 /**
  *
@@ -27,6 +29,9 @@ public interface TemplateCall extends Command
     
     Template getTemplate();
     
+    @Deprecated
     QuerySolutionMap getInitialBinding();
 
+    Map<String, RDFNode> getSubstitutions();
+    
 }
