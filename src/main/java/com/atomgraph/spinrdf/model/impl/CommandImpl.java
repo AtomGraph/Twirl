@@ -81,6 +81,7 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
         Template template = getTemplate();
         if (template != null) return template.getBody().getText();
         
+        // TO-DO: TRACE logging
         throw new PropertyNotFoundException(SP.text);
     }
     
@@ -94,7 +95,19 @@ public class CommandImpl extends ResourceImpl implements TemplateCall
             {
                 Statement s = it.next();
 
-                if (s.getObject().canAs(Template.class)) return s.getObject().as(Template.class);
+                if (s.getObject().canAs(Template.class))
+                {
+                    Template template = s.getObject().as(Template.class);
+                    try
+                    {
+                        template.getBody(); // missing spin:body throws exception
+                        return template;
+                    }
+                    catch (PropertyNotFoundException ex)
+                    {
+                        // TO-DO: TRACE logging
+                    }
+                }
             }
         }
         finally

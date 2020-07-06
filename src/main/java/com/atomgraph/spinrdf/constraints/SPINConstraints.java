@@ -175,35 +175,39 @@ public class SPINConstraints
         QuerySolutionMap qsm = new QuerySolutionMap();
         qsm.addAll(wrapper.getQuerySolutionMap());
 
-        Model violationModel = ModelFactory.createDefaultModel();
-        
         ResIterator it = model.listSubjectsWithProperty(RDF.type, cls);
-        while (it.hasNext())
+        try
         {
-            Resource instance = it.next();
-
-            qsm.add(SPIN.THIS_VAR_NAME, instance);
-          
-            try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
+            while (it.hasNext())
             {
-                qex.execConstruct(violationModel);
-                //ResultSetFormatter.out(System.out, qex.execSelect());
+                Resource instance = it.next();
 
-                addConstructedProblemReports(violationModel, cvs, model, cls, null, null, wrapper.getSource());
+                qsm.add(SPIN.THIS_VAR_NAME, instance);
+
+                try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
+                {
+                    //ResultSetFormatter.out(System.out, qex.execSelect());
+
+                    cvs.addAll(convertToConstraintViolations(qex.execConstruct(), model, cls, null, null, wrapper.getSource()));
+                }
             }
         }
-        
-        it.close();
+        finally
+        {
+            it.close();
+        }
     }
 
-    private static void addConstructedProblemReports(
+    private static List<ConstraintViolation> convertToConstraintViolations(
             Model cm,
-            List<ConstraintViolation> results,
             Model model,
             Resource atClass,
             Resource matchRoot,
             String label,
-            Resource source) {
+            Resource source)
+    {
+        List<ConstraintViolation> results = new ArrayList<>();
+
         StmtIterator it = cm.listStatements(null, RDF.type, SPIN.ConstraintViolation);
         while(it.hasNext()) {
             Statement s = it.nextStatement();
@@ -233,6 +237,8 @@ public class SPINConstraints
                 results.add(createConstraintViolation(paths, value, fixes, root, label, source, level));
             }
         }
+        
+        return results;
     }
         
     private static ConstraintViolation createConstraintViolation(Collection<SimplePropertyPath> paths,
