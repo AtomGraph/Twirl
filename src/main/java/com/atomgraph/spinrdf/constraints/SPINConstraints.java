@@ -111,7 +111,7 @@ public class SPINConstraints
         {
             List<QueryWrapper> wrappers = class2Query.get(cls);
             for (QueryWrapper wrapper : wrappers)
-                runQueryOnClass(cvs, wrapper, cls, model);
+                cvs.addAll(runQueryOnClass(wrapper, cls, model));
         }
         
         return cvs;
@@ -170,8 +170,10 @@ public class SPINConstraints
         return class2Query;
     }
     
-    protected static void runQueryOnClass(List<ConstraintViolation> cvs, QueryWrapper wrapper, Resource cls, Model model)
+    protected static List<ConstraintViolation> runQueryOnClass(QueryWrapper wrapper, Resource cls, Model model)
     {
+        List<ConstraintViolation> cvs = new ArrayList<>();
+        
         QuerySolutionMap qsm = new QuerySolutionMap();
         qsm.addAll(wrapper.getQuerySolutionMap());
 
@@ -196,6 +198,8 @@ public class SPINConstraints
         {
             it.close();
         }
+        
+        return cvs;
     }
 
     private static List<ConstraintViolation> convertToConstraintViolations(
