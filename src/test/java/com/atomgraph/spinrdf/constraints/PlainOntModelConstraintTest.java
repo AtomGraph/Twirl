@@ -14,23 +14,23 @@
  *  See the NOTICE file distributed with this work for additional
  *  information regarding copyright ownership.
  */
-package com.atomgraph.spinrdf.model;
+package com.atomgraph.spinrdf.constraints;
 
-import java.util.List;
-import java.util.Map;
-import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.ontology.OntModel;
+import org.apache.jena.ontology.OntModelSpec;
+import org.apache.jena.rdf.model.ModelFactory;
 
 /**
  *
  * @author Martynas Jusevičius <martynas@atomgraph.com>
  */
-public interface Template extends Resource
+public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
 {
     
-    List<Argument> getArguments(boolean ordered);
-    
-    Map<String, Argument> getArgumentsMap();
-    
-    Query getBody();
+    @Override
+    public OntModel getOntModel()
+    {
+        return ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
+    }
     
 }

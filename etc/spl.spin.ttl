@@ -15,7 +15,6 @@
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <http://spinrdf.org/spl>
-  a spin:LibraryOntology ;
   a owl:Ontology ;
   rdfs:comment "A collection of generally useful SPARQL functions (expressed as SPIN functions), and SPIN templates. Also provides a top-level classification of functions, and definitions of the standard SPARQL functions." ;
   rdfs:label "SPIN Standard Library" ;
@@ -52,7 +51,7 @@ WHERE
             FILTER ( isURI(?value) || isBlank(?value) )
             FILTER bound(?valueType)
             FILTER ( ( ?valueType != rdfs:Resource ) || isLiteral(?value) )
-            FILTER NOT EXISTS { ?value  rdf:type  ?class .
+            FILTER NOT EXISTS { ?value  a  ?class .
                                 ?class (rdfs:subClassOf)* ?valueType
                               }
           }
@@ -143,7 +142,7 @@ spl:Attribute
         { ?this  ?predicate  ?value
           FILTER ( isURI(?value) || isBlank(?value) )
           FILTER bound(?valueType)
-          FILTER NOT EXISTS { ?value  rdf:type  ?class .
+          FILTER NOT EXISTS { ?value  a  ?class .
                               ?class (rdfs:subClassOf)* ?valueType
                             }
         }
@@ -203,13 +202,13 @@ If a model wants to use spl:defaultValue, then it should instantiate the spl:Con
   rdfs:subClassOf spin:ConstructTemplates ;
 .
 spl:optional
-  rdf:type rdf:Property ;
+  a rdf:Property ;
   rdfs:label "optional"^^xsd:string ;
   rdfs:range xsd:boolean ;
   rdfs:subPropertyOf sp:arg ;
 .
 spl:predicate
-  rdf:type rdf:Property ;
+  a rdf:Property ;
   rdfs:label "predicate"^^xsd:string ;
   rdfs:subPropertyOf sp:arg ;
 .
@@ -231,3 +230,18 @@ spl:defaultValue
   rdfs:label "default value" ;
   rdfs:subPropertyOf sp:arg ;
 .
+# adding additional definitions so that SPL constraints successfully validate themselves
+rdf:Property
+  a rdfs:Class .
+rdfs:Resource
+  a rdfs:Class .
+rdfs:Class
+  a rdfs:Class .
+rdfs:comment
+  a rdf:Property, rdfs:Class .
+xsd:boolean
+  a rdfs:Class .
+xsd:string
+  a rdfs:Class .
+xsd:integer
+  a rdfs:Class .

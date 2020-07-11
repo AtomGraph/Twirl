@@ -42,8 +42,12 @@ import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
+import java.util.HashSet;
+import java.util.Set;
+import org.apache.jena.ontology.OntClass;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.shared.PropertyNotFoundException;
+import org.apache.jena.util.iterator.ExtendedIterator;
 
 /**
  *
@@ -111,10 +115,43 @@ public class SPINConstraints
         {
             List<QueryWrapper> wrappers = class2Query.get(cls);
             for (QueryWrapper wrapper : wrappers)
+            {
                 cvs.addAll(runQueryOnClass(wrapper, cls, model));
+            
+                // run the same constraint query on subclasses
+                Set<Resource> subClasses = getSubClasses(cls);
+                for (Resource subCls : subClasses)
+                    cvs.addAll(runQueryOnClass(wrapper, subCls, model));
+            }
         }
         
         return cvs;
+    }
+    
+    protected static Set<Resource> getSubClasses(Resource cls)
+    {
+        Set<Resource> subClasses = new HashSet<>();
+        
+        StmtIterator it = cls.getModel().listStatements(null, RDFS.subClassOf, cls);
+        try
+        {
+            while (it.hasNext())
+            {
+                Statement stmt = it.next();
+                if (stmt.getSubject().isResource())
+                {
+                    Resource subCls = stmt.getSubject().asResource();
+                    subClasses.add(subCls);
+                    subClasses.addAll(getSubClasses(subCls));
+                }
+            }
+        }
+        finally
+        {
+            it.close();
+        }
+        
+        return subClasses;
     }
     
     protected static Map<Resource, List<QueryWrapper>> class2Query(OntModel model, Property predicate)
@@ -127,39 +164,7 @@ public class SPINConstraints
             while (constraintIt.hasNext())
             {
                 Statement stmt = constraintIt.next();
-
-                Resource constrainedClass = stmt.getSubject();
-                Resource constraint = stmt.getResource();
-                final Query constraintQuery;
-
-                if (constraint.canAs(com.atomgraph.spinrdf.model.Query.class))
-                {
-                    try
-                    {
-                        com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
-                        constraintQuery = QueryFactory.create(query.getText());
-                    }
-                    catch (PropertyNotFoundException ex)
-                    {
-                        continue;
-                    }
-                }
-                else continue;
-
-                final QuerySolutionMap qsm;
-                if (constraint.canAs(TemplateCall.class)) qsm = constraint.as(TemplateCall.class).getInitialBinding();
-                else qsm = new QuerySolutionMap();
-
-                QueryWrapper wrapper = new QueryWrapper(constraint, constraintQuery, qsm);
-
-                if (class2Query.containsKey(constrainedClass))
-                    class2Query.get(constrainedClass).add(wrapper);
-                else
-                {
-                    List<QueryWrapper> wrapperList = new ArrayList<>();
-                    wrapperList.add(wrapper);
-                    class2Query.put(constrainedClass, wrapperList);
-                }
+                addClassContraints(stmt, predicate, class2Query);
             }
         }
         finally
@@ -168,6 +173,79 @@ public class SPINConstraints
         }
         
         return class2Query;
+    }
+    
+    protected static void addClassContraints(Statement stmt, Property predicate, Map<Resource, List<QueryWrapper>> class2Query)
+    {
+        Resource cls = stmt.getSubject();
+        Resource constraint = stmt.getResource();
+
+        QueryWrapper wrapper = createWrapper(constraint);
+        if (wrapper == null) return;
+
+        if (class2Query.containsKey(cls))
+            class2Query.get(cls).add(wrapper);
+        else
+        {
+            List<QueryWrapper> wrapperList = new ArrayList<>();
+            wrapperList.add(wrapper);
+            class2Query.put(cls, wrapperList);
+        }
+
+        if (cls.canAs(OntClass.class))
+        {
+            OntClass ontCls = cls.as(OntClass.class);
+            ExtendedIterator<OntClass> classIt = ontCls.listSuperClasses();
+            try
+            {
+                while (classIt.hasNext())
+                {
+                    OntClass superCls = classIt.next();
+                    StmtIterator constraintIt = superCls.listProperties(predicate);
+                    try
+                    {
+                        while (constraintIt.hasNext())
+                        {
+                            addClassContraints(constraintIt.next(), predicate, class2Query);
+                        }
+                    }
+                    finally
+                    {
+                        constraintIt.close();
+                    }
+                }
+            }
+            finally
+            {
+                classIt.close();
+            }
+        }
+    }
+    
+    protected static QueryWrapper createWrapper(Resource constraint)
+    {
+        final Query constraintQuery;
+
+        if (constraint.canAs(com.atomgraph.spinrdf.model.Query.class))
+        {
+            try
+            {
+                com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
+                constraintQuery = QueryFactory.create(query.getText());
+            }
+            catch (PropertyNotFoundException ex)
+            {
+                return null;
+            }
+        }
+        else
+            return null;
+
+        final QuerySolutionMap qsm;
+        if (constraint.canAs(TemplateCall.class)) qsm = constraint.as(TemplateCall.class).getInitialBinding();
+        else qsm = new QuerySolutionMap();
+
+        return new QueryWrapper(constraint, constraintQuery, qsm);
     }
     
     protected static List<ConstraintViolation> runQueryOnClass(QueryWrapper wrapper, Resource cls, Model model)

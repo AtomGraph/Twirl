@@ -17,6 +17,7 @@
 package com.atomgraph.spinrdf.model.impl;
 
 import com.atomgraph.spinrdf.vocabulary.SP;
+import com.atomgraph.spinrdf.vocabulary.SPIN;
 import org.apache.jena.enhanced.EnhGraph;
 import org.apache.jena.enhanced.EnhNode;
 import org.apache.jena.enhanced.Implementation;
@@ -25,6 +26,7 @@ import org.apache.jena.ontology.ConversionException;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.RDFS;
 
 /**
  *
@@ -54,7 +56,29 @@ public class QueryImpl extends CommandImpl implements com.atomgraph.spinrdf.mode
         {
             if (eg == null) throw new IllegalArgumentException("EnhGraph cannot be null");
 
-            return eg.asGraph().contains(node, RDF.type.asNode(), SP.Query.asNode());
+            // Query instance
+            if (eg.asGraph().contains(node, RDF.type.asNode(), SP.Query.asNode())) return true;
+            else
+            {
+                // Query subclass instance
+                if (eg.asGraph().find(node, RDF.type.asNode(), null).
+                    filterKeep(t -> eg.asGraph().contains(t.getObject(), RDFS.subClassOf.asNode(), SP.Query.asNode())).
+                    hasNext()) return true;
+                else
+                {
+                    // Template instance
+                    if (eg.asGraph().find(node, RDF.type.asNode(), null).
+                        filterKeep(t -> eg.asGraph().contains(t.getObject(), RDF.type.asNode(), SPIN.Template.asNode())).
+                        hasNext()) return true;
+                    // Template subclass instance
+                    else
+                        return (eg.asGraph().find(node, RDF.type.asNode(), null).
+                        filterKeep(t -> eg.asGraph().find(t.getObject(), RDF.type.asNode(), null).
+                                filterKeep(tt ->  eg.asGraph().contains(tt.getObject(), RDFS.subClassOf.asNode(), SPIN.Template.asNode())).
+                                hasNext()).
+                        hasNext());
+                }
+            }
         }
         
     };

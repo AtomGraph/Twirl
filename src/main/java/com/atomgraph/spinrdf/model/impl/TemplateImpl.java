@@ -24,6 +24,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,14 +39,16 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
 import org.apache.jena.rdf.model.StmtIterator;
+import org.apache.jena.rdf.model.impl.ResourceImpl;
 import org.apache.jena.shared.PropertyNotFoundException;
 import org.apache.jena.vocabulary.RDF;
+import org.apache.jena.vocabulary.RDFS;
 
 /**
  *
  * @author Martynas Jusevičius <martynas@atomgraph.com>
  */
-public class TemplateImpl extends OntClassImpl implements Template
+public class TemplateImpl extends ResourceImpl implements Template
 {
 
     public static Implementation factory = new Implementation() 
@@ -69,7 +72,11 @@ public class TemplateImpl extends OntClassImpl implements Template
         {
             if (eg == null) throw new IllegalArgumentException("EnhGraph cannot be null");
 
-            return (eg.asGraph().contains(node, RDF.type.asNode(), SPIN.Template.asNode()));
+            if (eg.asGraph().contains(node, RDF.type.asNode(), SPIN.Template.asNode())) return true;
+            else
+                return (eg.asGraph().find(node, RDF.type.asNode(), null).
+                    filterKeep(t -> eg.asGraph().contains(t.getObject(), RDFS.subClassOf.asNode(), SPIN.Template.asNode()))).
+                    hasNext();
         }
         
     };
@@ -88,13 +95,44 @@ public class TemplateImpl extends OntClassImpl implements Template
         throw new PropertyNotFoundException(SPIN.body);
     }
 
+    protected Set<Resource> getSuperClasses()
+    {
+        return getSuperClasses(this);
+    }
+    
+    protected Set<Resource> getSuperClasses(Resource cls)
+    {
+        Set<Resource> superClasses = new HashSet<>();
+        
+        StmtIterator it = cls.listProperties(RDFS.subClassOf);
+        try
+        {
+            while (it.hasNext())
+            {
+                Statement stmt = it.next();
+                if (stmt.getObject().isResource())
+                {
+                    Resource superCls = stmt.getObject().asResource();
+                    superClasses.add(stmt.getObject().asResource());
+                    superClasses.addAll(getSuperClasses(superCls));
+                }
+            }
+        }
+        finally
+        {
+            it.close();
+        }
+        
+        return superClasses;
+    }
+    
     @Override
     public List<Argument> getArguments(boolean ordered)
     {
         List<Argument> results = new ArrayList<>();
         StmtIterator it = null;
         try {
-            Set<OntClass> classes = listSuperClasses().toSet(); // JenaUtil.getAllSuperClasses(this);
+            Set<Resource> classes = getSuperClasses();
             classes.add(this);
             for(Resource cls : classes) {
                 it = cls.listProperties(SPIN.constraint);
