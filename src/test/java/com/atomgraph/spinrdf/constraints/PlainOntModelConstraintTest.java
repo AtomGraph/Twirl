@@ -16,9 +16,18 @@
  */
 package com.atomgraph.spinrdf.constraints;
 
+import com.atomgraph.spinrdf.vocabulary.SPIN;
+import com.atomgraph.spinrdf.vocabulary.SPL;
+import org.apache.jena.datatypes.xsd.XSDDatatype;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.OntModelSpec;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.Resource;
+import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.sparql.vocabulary.FOAF;
+import org.apache.jena.vocabulary.RDFS;
+import static org.junit.Assert.assertEquals;
+import org.junit.Test;
 
 /**
  *
@@ -28,9 +37,43 @@ public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
 {
     
     @Override
-    public OntModel getOntModel()
+    public OntModel createOntModel()
     {
         return ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
+    }
+    
+    @Test
+    @Override
+    public void classInheritance2()
+    {
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
+                addProperty(RDFS.subClassOf, superCls);
+        
+        getOntModel().createIndividual("http://data/instance", cls);
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
+    }
+
+    @Test
+    @Override
+    public void classInheritance3()
+    {
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
+                addProperty(RDFS.subClassOf, superCls);
+        Resource subCls = getOntModel().createIndividual("http://ontology/sub-class", RDFS.Class).
+                addProperty(RDFS.subClassOf, cls);
+        
+        getOntModel().createIndividual("http://data/sub-instance", subCls);
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
     
 }

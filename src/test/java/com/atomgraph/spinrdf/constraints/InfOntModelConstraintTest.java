@@ -59,7 +59,7 @@ public class InfOntModelConstraintTest
         com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
     }
     
-    public OntModel getOntModel()
+    public OntModel createOntModel()
     {
         return ModelFactory.createOntologyModel();
     }
@@ -67,7 +67,7 @@ public class InfOntModelConstraintTest
     @Before
     public void ontology()
     {
-        ontModel = getOntModel();
+        ontModel = createOntModel();
         
         ontology = ontModel.createOntology("http://ontology/");
         ontology.addImport(ResourceFactory.createResource(SP.NS));
@@ -85,194 +85,223 @@ public class InfOntModelConstraintTest
     
     public void countSystemConstraints()
     {
-        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size());
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(getOntModel(), SPIN.constraint).size());
     }
     
     @Test
     public void missingTemplateBody()
     {
-        Resource template = ontModel.createIndividual("http://ontology/template", SPIN.Template);
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", template);
-        ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template);
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", template);
+        getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size()); // constraint ignored
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(getOntModel(), SPIN.constraint).size()); // constraint ignored
     }
 
     @Test
     public void missingQueryText()
     {
-        Resource template = ontModel.createIndividual("http://ontology/template", SPIN.Template);
-        Resource constraint = ontModel.createIndividual("http://ontology/template", template).
-                addProperty(SPIN.body, ontModel.createIndividual(SP.Construct));
-        ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template);
+        Resource constraint = getOntModel().createIndividual("http://ontology/template", template).
+                addProperty(SPIN.body, getOntModel().createIndividual(SP.Construct));
+        getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
 
-        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size()); // constraint ignored
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(getOntModel(), SPIN.constraint).size()); // constraint ignored
     }
 
     @Test(expected = QueryParseException.class)
     public void queryTextSyntaxError()
     {
-        Resource template = ontModel.createIndividual("http://ontology/template", SPIN.Template).
-                addProperty(SPIN.body, ontModel.createIndividual(SP.Construct).
+        Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createIndividual(SP.Construct).
                         addProperty(SP.text, "not SPARQL"));
-        Resource constraint = ontModel.createIndividual("http://ontology/template", template);
-        ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource constraint = getOntModel().createIndividual("http://ontology/template", template);
+        getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(ontModel, SPIN.constraint).size());
+        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(getOntModel(), SPIN.constraint).size());
     }
 
     @Test
-    public void classInheritance()
+    public void classInheritance1()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
-        Resource superCls = ontModel.createIndividual("http://ontology/super-class", RDFS.Class).
+        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        
+        getOntModel().createIndividual("http://data/super-instance", superCls);
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
+    }
+
+    @Test
+    public void classInheritance2()
+    {
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(RDFS.subClassOf, superCls);
-        Resource subCls = ontModel.createIndividual("http://ontology/sub-class", RDFS.Class).
+        
+        getOntModel().createIndividual("http://data/instance", cls);
+        assertEquals(2, SPINConstraints.check(getOntModel()).size()); // because the instance is also inferred to be an instance of the super-class
+    }
+
+    @Test
+    public void classInheritance3()
+    {
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
+                addProperty(RDFS.subClassOf, superCls);
+        Resource subCls = getOntModel().createIndividual("http://ontology/sub-class", RDFS.Class).
                 addProperty(RDFS.subClassOf, cls);
         
-        ontModel.createIndividual("http://data/super-instance", superCls);
-        assertEquals(1, SPINConstraints.check(ontModel).size());
-        ontModel.createIndividual("http://data/instance", cls);
-        assertEquals(2, SPINConstraints.check(ontModel).size());
-        ontModel.createIndividual("http://data/sub-instance", subCls);
-        assertEquals(3, SPINConstraints.check(ontModel).size());
+        getOntModel().createIndividual("http://data/sub-instance", subCls);
+        assertEquals(3, SPINConstraints.check(getOntModel()).size()); // because the instance is also inferred to be an instance of the super-classes
     }
 
     @Test
     public void invalidMinCount()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        ontModel.createIndividual("http://data/instance", cls);
+        getOntModel().createIndividual("http://data/instance", cls);
         
-        assertEquals(1, SPINConstraints.check(ontModel).size());
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
     
     @Test
     public void invalidMaxCount()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.maxCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        ontModel.createIndividual("http://data/instance", cls).
+        getOntModel().createIndividual("http://data/instance", cls).
                 addLiteral(FOAF.name, "one").
                 addLiteral(FOAF.name, "two");
         
-        assertEquals(1, SPINConstraints.check(ontModel).size());
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
     
     @Test
     public void invalidResourceValueType()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.maker).
                 addProperty(SPL.valueType, FOAF.Person);
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        Resource notPerson = ontModel.createIndividual("http://ontology/not-person", FOAF.Group);
-        ontModel.createIndividual("http://data/instance", cls).
+        Resource notPerson = getOntModel().createIndividual("http://ontology/not-person", FOAF.Group);
+        getOntModel().createIndividual("http://data/instance", cls).
                 addProperty(FOAF.maker, notPerson);
         
-        assertEquals(1, SPINConstraints.check(ontModel).size());
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
 
     @Test
     public void invalidResourceSubClassValueType()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.maker).
                 addProperty(SPL.valueType, FOAF.Person);
-        Resource cls = ontModel.createResource("http://ontology/class").
+        Resource cls = getOntModel().createResource("http://ontology/class").
                 addProperty(RDF.type, RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        Resource subClass = ontModel.createResource("http://data/not-person-subclass").
+        Resource subClass = getOntModel().createResource("http://data/not-person-subclass").
                 addProperty(RDFS.subClassOf, FOAF.Group);
-        Resource notPerson = ontModel.createIndividual("http://ontology/not-person", subClass);
-        ontModel.createIndividual("http://data/instance", cls).
+        Resource notPerson = getOntModel().createIndividual("http://ontology/not-person", subClass);
+        getOntModel().createIndividual("http://data/instance", cls).
                 addProperty(FOAF.maker, notPerson);
         
-        assertEquals(1, SPINConstraints.check(ontModel).size());
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
     
     @Test
     public void validResourceValueType()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.maker).
                 addProperty(SPL.valueType, FOAF.Person);
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        Resource person = ontModel.createIndividual("http://data/person", FOAF.Person);
-        ontModel.createIndividual("http://data/instance", cls).
+        Resource person = getOntModel().createIndividual("http://data/person", FOAF.Person);
+        getOntModel().createIndividual("http://data/instance", cls).
                 addProperty(FOAF.maker, person);
         
-        assertEquals(0, SPINConstraints.check(ontModel).size());
+        assertEquals(0, SPINConstraints.check(getOntModel()).size());
     }
 
     @Test
     public void validResourceSubClassValueType()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.maker).
                 addProperty(SPL.valueType, FOAF.Person);
-        Resource cls = ontModel.createResource("http://ontology/class").
+        Resource cls = getOntModel().createResource("http://ontology/class").
                 addProperty(RDF.type, RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        Resource subClass = ontModel.createResource("http://data/concept-subclass").
+        Resource subClass = getOntModel().createResource("http://data/concept-subclass").
                 addProperty(RDFS.subClassOf, FOAF.Person);
-        Resource person = ontModel.createIndividual("http://data/concept", subClass);
-        ontModel.createIndividual("http://data/instance", cls).
+        Resource person = getOntModel().createIndividual("http://data/concept", subClass);
+        getOntModel().createIndividual("http://data/instance", cls).
                 addProperty(FOAF.maker, person);
         
-        assertEquals(0, SPINConstraints.check(ontModel).size());
+        assertEquals(0, SPINConstraints.check(getOntModel()).size());
     }
     
     @Test
     public void validStringValueType()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addProperty(SPL.valueType, XSD.xstring);
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        ontModel.createIndividual("http://data/instance", cls).
+        getOntModel().createIndividual("http://data/instance", cls).
                 addLiteral(FOAF.name, "literal");
         
-        assertEquals(0, SPINConstraints.check(ontModel).size());
+        assertEquals(0, SPINConstraints.check(getOntModel()).size());
     }
     
     @Test
     public void invalidStringValueType()
     {
-        Resource constraint = ontModel.createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addProperty(SPL.valueType, XSD.xstring);
-        Resource cls = ontModel.createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         
-        ontModel.createIndividual("http://data/instance", cls).
+        getOntModel().createIndividual("http://data/instance", cls).
                 addLiteral(FOAF.name, 42);
 
-        assertEquals(1, SPINConstraints.check(ontModel).size());
+        assertEquals(1, SPINConstraints.check(getOntModel()).size());
+    }
+    
+    public OntModel getOntModel()
+    {
+        return ontModel;
     }
     
 }

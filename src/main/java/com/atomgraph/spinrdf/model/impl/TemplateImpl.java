@@ -113,8 +113,11 @@ public class TemplateImpl extends ResourceImpl implements Template
                 if (stmt.getObject().isResource())
                 {
                     Resource superCls = stmt.getObject().asResource();
-                    superClasses.add(stmt.getObject().asResource());
-                    superClasses.addAll(getSuperClasses(superCls));
+                    if (!superCls.equals(cls))
+                    {
+                        superClasses.add(stmt.getObject().asResource());
+                        superClasses.addAll(getSuperClasses(superCls));
+                    }
                 }
             }
         }

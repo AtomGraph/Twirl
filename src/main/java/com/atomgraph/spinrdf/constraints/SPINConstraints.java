@@ -141,8 +141,11 @@ public class SPINConstraints
                 if (stmt.getSubject().isResource())
                 {
                     Resource subCls = stmt.getSubject().asResource();
-                    subClasses.add(subCls);
-                    subClasses.addAll(getSubClasses(subCls));
+                    if (!subCls.equals(cls))
+                    {
+                        subClasses.add(subCls);
+                        subClasses.addAll(getSubClasses(subCls));
+                    }
                 }
             }
         }
