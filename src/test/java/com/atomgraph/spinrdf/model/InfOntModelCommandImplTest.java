@@ -1,7 +1,18 @@
 /*
- * To change this license header, choose License Headers in Project Properties.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
+ *  Licensed under the Apache License, Version 2.0 (the "License");
+ *  you may not use this file except in compliance with the License.
+ *  You may obtain a copy of the License at
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ *  Unless required by applicable law or agreed to in writing, software
+ *  distributed under the License is distributed on an "AS IS" BASIS,
+ *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ *  See the License for the specific language governing permissions and
+ *  limitations under the License.
+ *
+ *  See the NOTICE file distributed with this work for additional
+ *  information regarding copyright ownership.
  */
 package com.atomgraph.spinrdf.model;
 
@@ -24,7 +35,7 @@ import org.junit.Test;
  *
  * @author Martynas Jusevičius <martynas@atomgraph.com>
  */
-public class CommandImplTest
+public class InfOntModelCommandImplTest
 {
     
     private OntModel ontModel;
@@ -41,7 +52,7 @@ public class CommandImplTest
         com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
     }
     
-    public OntModel getOntModel()
+    public OntModel createOntModel()
     {
         return ModelFactory.createOntologyModel();
     }
@@ -49,7 +60,7 @@ public class CommandImplTest
     @Before
     public void ontology()
     {
-        ontModel = getOntModel();
+        ontModel = createOntModel();
         
         ontology = ontModel.createOntology("http://ontology/");
         ontology.addImport(ResourceFactory.createResource(SP.NS));
@@ -62,14 +73,18 @@ public class CommandImplTest
     @Test(expected = PropertyNotFoundException.class)
     public void missingTemplateBody()
     {
-        ontModel.createIndividual(SPIN.Template).as(Template.class).getBody(); // missing spin:body
+        getOntModel().createIndividual(SPIN.Template).as(Template.class).getBody(); // missing spin:body
     }
 
     @Test(expected = PropertyNotFoundException.class)
     public void missingQueryText()
     {
-        ontModel.createIndividual(SP.Construct).as(Query.class).getText(); // missing sp:text
+        getOntModel().createIndividual(SP.Construct).as(Query.class).getText(); // missing sp:text
     }
 
+    public OntModel getOntModel()
+    {
+        return ontModel;
+    }
     
 }

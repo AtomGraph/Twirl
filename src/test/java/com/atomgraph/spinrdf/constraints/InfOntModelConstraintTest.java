@@ -102,9 +102,9 @@ public class InfOntModelConstraintTest
     @Test
     public void missingQueryText()
     {
-        Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template);
-        Resource constraint = getOntModel().createIndividual("http://ontology/template", template).
+        Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template).
                 addProperty(SPIN.body, getOntModel().createIndividual(SP.Construct));
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", template);
         getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
 
@@ -117,7 +117,7 @@ public class InfOntModelConstraintTest
         Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template).
                 addProperty(SPIN.body, getOntModel().createIndividual(SP.Construct).
                         addProperty(SP.text, "not SPARQL"));
-        Resource constraint = getOntModel().createIndividual("http://ontology/template", template);
+        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", template);
         getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
         

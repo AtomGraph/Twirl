@@ -22,7 +22,6 @@ import com.atomgraph.spinrdf.model.Template;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -33,8 +32,6 @@ import org.apache.jena.enhanced.EnhNode;
 import org.apache.jena.enhanced.Implementation;
 import org.apache.jena.graph.Node;
 import org.apache.jena.ontology.ConversionException;
-import org.apache.jena.ontology.OntClass;
-import org.apache.jena.ontology.impl.OntClassImpl;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.Statement;
@@ -133,37 +130,34 @@ public class TemplateImpl extends ResourceImpl implements Template
     public List<Argument> getArguments(boolean ordered)
     {
         List<Argument> results = new ArrayList<>();
-        StmtIterator it = null;
-        try {
-            Set<Resource> classes = getSuperClasses();
-            classes.add(this);
-            for(Resource cls : classes) {
-                it = cls.listProperties(SPIN.constraint);
-                while(it.hasNext()) {
+
+        Set<Resource> classes = getSuperClasses();
+        classes.add(this);
+        for (Resource cls : classes)
+        {
+            StmtIterator it = cls.listProperties(SPIN.constraint);
+            try
+            {
+                while (it.hasNext())
+                {
                     Statement s = it.nextStatement();
                     addArgumentFromConstraint(s, results);
                 }
             }
-        }
-        finally {
-            if (it != null) {
+            finally
+            {
                 it.close();
             }
         }
         
-        if(ordered) {
-            Collections.sort(results, new Comparator<Argument>() {
-                @Override
-                public int compare(    Argument o1,     Argument o2) {
-                    Property p1 = o1.getPredicate();
-                    Property p2 = o2.getPredicate();
-                    if(p1 != null && p2 != null) {
-                        return p1.getLocalName().compareTo(p2.getLocalName());
-                    }
-                    else {
-                        return 0;
-                    }
-                }
+        if(ordered)
+        {
+            Collections.sort(results, (Argument o1, Argument o2) ->
+            {
+                Property p1 = o1.getPredicate();
+                Property p2 = o2.getPredicate();
+                if (p1 != null && p2 != null) return p1.getLocalName().compareTo(p2.getLocalName());
+                else return 0;
             });
         }
         
@@ -187,9 +181,7 @@ public class TemplateImpl extends ResourceImpl implements Template
         for (Argument argument : getArguments(false))
         {
             Property property = argument.getPredicate();
-            if(property != null) {
-                results.put(property.getLocalName(), argument);
-            }
+            if (property != null) results.put(property.getLocalName(), argument);
         }
         
         return results;
