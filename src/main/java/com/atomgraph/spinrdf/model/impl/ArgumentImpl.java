@@ -61,7 +61,11 @@ public class ArgumentImpl extends ResourceImpl implements Argument
         {
             if (eg == null) throw new IllegalArgumentException("EnhGraph cannot be null");
 
-            return eg.asGraph().contains(node, RDF.type.asNode(), SPL.Argument.asNode());
+            if (eg.asGraph().contains(node, RDF.type.asNode(), SPL.Argument.asNode())) return true;
+            else
+                return (eg.asGraph().find(node, RDF.type.asNode(), null).
+                    filterKeep(t -> eg.asGraph().contains(t.getObject(), RDFS.subClassOf.asNode(), SPL.Argument.asNode()))).
+                    hasNext();
         }
         
     };
