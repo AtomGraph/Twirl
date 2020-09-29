@@ -21,7 +21,7 @@
     <groupId>com.atomgraph</groupId>
     <artifactId>twirl</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.11-SNAPSHOT</version>
+    <version>1.0.14-SNAPSHOT</version>
     <name>Twirl RDF API</name>
 
     <description>A library for simplified SPIN constraint validation.</description>
@@ -43,11 +43,7 @@
         <connection>scm:git:https://github.com/AtomGraph/Twirl</connection>
         <developerConnection>scm:git:git@github.com:AtomGraph/Twirl.git</developerConnection>
     </scm>
-
-    <prerequisites>
-        <maven>3.3.3</maven>
-    </prerequisites>
-
+    
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
     </properties>
@@ -55,9 +51,8 @@
     <dependencies>
         <dependency>
             <groupId>org.apache.jena</groupId>
-            <artifactId>apache-jena-libs</artifactId>
-            <version>3.16.0-SNAPSHOT</version>
-            <type>pom</type>
+            <artifactId>jena-arq</artifactId>
+            <version>3.16.0</version>
         </dependency>
         <dependency>
             <groupId>junit</groupId>

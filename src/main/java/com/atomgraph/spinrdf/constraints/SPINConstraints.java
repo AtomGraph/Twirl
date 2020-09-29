@@ -44,10 +44,8 @@ import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.jena.ontology.OntClass;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.shared.PropertyNotFoundException;
-import org.apache.jena.util.iterator.ExtendedIterator;
 
 /**
  *
@@ -156,7 +154,36 @@ public class SPINConstraints
         
         return subClasses;
     }
-    
+
+    protected static Set<Resource> getSuperClasses(Resource cls)
+    {
+        Set<Resource> superClasses = new HashSet<>();
+        
+        StmtIterator it = cls.getModel().listStatements(cls, RDFS.subClassOf, (RDFNode)null);
+        try
+        {
+            while (it.hasNext())
+            {
+                Statement stmt = it.next();
+                if (stmt.getSubject().isResource())
+                {
+                    Resource subCls = stmt.getSubject().asResource();
+                    if (!subCls.equals(cls))
+                    {
+                        superClasses.add(subCls);
+                        superClasses.addAll(getSubClasses(subCls));
+                    }
+                }
+            }
+        }
+        finally
+        {
+            it.close();
+        }
+        
+        return superClasses;
+    }
+
     protected static Map<Resource, List<QueryWrapper>> class2Query(OntModel model, Property predicate)
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
@@ -195,34 +222,51 @@ public class SPINConstraints
             class2Query.put(cls, wrapperList);
         }
 
-        if (cls.canAs(OntClass.class))
+        Set<Resource> superClasses = getSuperClasses(cls);
+        for (Resource superClass : superClasses)
         {
-            OntClass ontCls = cls.as(OntClass.class);
-            ExtendedIterator<OntClass> classIt = ontCls.listSuperClasses();
+            StmtIterator constraintIt = superClass.listProperties(predicate);
             try
             {
-                while (classIt.hasNext())
+                while (constraintIt.hasNext())
                 {
-                    OntClass superCls = classIt.next();
-                    StmtIterator constraintIt = superCls.listProperties(predicate);
-                    try
-                    {
-                        while (constraintIt.hasNext())
-                        {
-                            addClassContraints(constraintIt.next(), predicate, class2Query);
-                        }
-                    }
-                    finally
-                    {
-                        constraintIt.close();
-                    }
+                    addClassContraints(constraintIt.next(), predicate, class2Query);
                 }
             }
             finally
             {
-                classIt.close();
+                constraintIt.close();
             }
         }
+        
+//        if (cls.canAs(OntClass.class))
+//        {
+//            OntClass ontCls = cls.as(OntClass.class);
+//            ExtendedIterator<OntClass> classIt = ontCls.listSuperClasses();
+//            try
+//            {
+//                while (classIt.hasNext())
+//                {
+//                    OntClass superCls = classIt.next();
+//                    StmtIterator constraintIt = superCls.listProperties(predicate);
+//                    try
+//                    {
+//                        while (constraintIt.hasNext())
+//                        {
+//                            addClassContraints(constraintIt.next(), predicate, class2Query);
+//                        }
+//                    }
+//                    finally
+//                    {
+//                        constraintIt.close();
+//                    }
+//                }
+//            }
+//            finally
+//            {
+//                classIt.close();
+//            }
+//        }
     }
     
     protected static QueryWrapper createWrapper(Resource constraint)

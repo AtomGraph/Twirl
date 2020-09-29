@@ -1,30 +1,15 @@
-# Spin RDF
+# Twirl RDF
 
-Welcome to SpinRDF, an implement of the SPIN API for [Apache Jena](http://jena/apache.org).
+Twirl is a [SPIN](https://spinrdf.org/spin.html) constraint validator that is meant to be a drop-in replacement for the [SPIN RDF](https://github.com/spinrdf/spinrdf/).
 
-For more information on SPIN, please see http://spinrdf.org/.
+Twirl implementation is based on plain SPARQL execution and does not depend on Jena's internals, which leads to issues in SPIN RDF:
+* [Behavior change between Jena 3.0.1 and 3.16.0-SNAPSHOT](https://github.com/spinrdf/spinrdf/issues/22)
+* [SPIN constraint validation differs on 3.0.1 and 3.16.0-SNAPSHOT](https://www.mail-archive.com/users@jena.apache.org/msg17304.html)
 
-The project welcomes contributions, large and small, from anyone.
+Twirl has the following limitations:
+* `ASK` constraints are not supported (only `CONSTRUCT`)
+* constraint violation fixes are not supported
+* SPIN functions are not supported
+* SPIN rules are not supported
 
-For contribution, please see "[Guide to Contributing](.github/CONTRIBUTING.md).
-
-The project is licensed with the [Apache License](LICENSE).
-
-## Original code
-
-This git repository started with original material taken from the
-following publicly available files:
-
-http://topquadrant.com/repository/spin/org/topbraid/spin/2.0.0/spin-2.0.0-distribution.zip
-http://topquadrant.com/repository/spin/org/topbraid/spin/2.0.0/spin-2.0.0/pom
-
-Downloaded December 11th, 2016.
-
-with the following changes made by TopQuadrant Inc:
-
- * Add license headers to all files.
- * Repackage under org.spinrdf
- * Organise into a maven project.
-
-These original materials are copyright TopQuadrant Inc and licensed with the
-[Apache Software License](https://www.apache.org/licenses/LICENSE-2.0).
+Note that Twirl uses a different version of the [SPL vocabulary](etc/spl.spin.ttl).
