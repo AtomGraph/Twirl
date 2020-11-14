@@ -20,11 +20,26 @@
     <groupId>com.atomgraph</groupId>
     <artifactId>twirl</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.16-SNAPSHOT</version>
+    <version>1.0.17-SNAPSHOT</version>
+
     <name>Twirl RDF API</name>
-
     <description>A library for simplified SPIN constraint validation.</description>
+    <url>https://github.com/AtomGraph/Twirl</url>
+    <inceptionYear>2020</inceptionYear>
 
+    <developers>
+        <developer>
+            <id>namedgraph</id>
+            <email>martynas@atomgraph.com</email>
+            <roles>
+                <role>Developer</role>
+                <role>Founder</role>
+            </roles>
+            <organization>AtomGraph</organization>
+            <organizationUrl>https://atomgraph.com</organizationUrl>
+        </developer>
+    </developers>
+    
     <licenses>
         <license>
             <name>Apache License 2.0</name>
