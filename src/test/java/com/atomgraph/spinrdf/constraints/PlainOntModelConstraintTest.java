@@ -31,7 +31,7 @@ import org.junit.Test;
 
 /**
  *
- * @author Martynas Jusevičius <martynas@atomgraph.com>
+ * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
 {

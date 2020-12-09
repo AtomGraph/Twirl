@@ -30,7 +30,7 @@ import org.apache.jena.vocabulary.RDFS;
 
 /**
  *
- * @author Martynas Jusevičius <martynas@atomgraph.com>
+ * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class QueryImpl extends CommandImpl implements com.atomgraph.spinrdf.model.Query
 {

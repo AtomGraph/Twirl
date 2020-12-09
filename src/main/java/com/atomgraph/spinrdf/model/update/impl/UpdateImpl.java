@@ -28,7 +28,7 @@ import org.apache.jena.vocabulary.RDF;
 
 /**
  *
- * @author Martynas Jusevičius <martynas@atomgraph.com>
+ * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class UpdateImpl extends CommandImpl implements Update
 {
