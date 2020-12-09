@@ -20,7 +20,7 @@
     <groupId>com.atomgraph</groupId>
     <artifactId>twirl</artifactId>
     <packaging>jar</packaging>
-    <version>1.0.20-SNAPSHOT</version>
+    <version>1.0.20</version>
 
     <name>Twirl RDF API</name>
     <description>A library for simplified SPIN constraint validation.</description>
@@ -56,7 +56,7 @@
         <url>https://github.com/AtomGraph/Twirl</url>
         <connection>scm:git:https://github.com/AtomGraph/Twirl</connection>
         <developerConnection>scm:git:git@github.com:AtomGraph/Twirl.git</developerConnection>
-      <tag>HEAD</tag>
+      <tag>twirl-1.0.20</tag>
   </scm>
     
     <properties>
