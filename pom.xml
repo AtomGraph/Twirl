@@ -127,9 +127,6 @@
                 <configuration>
                     <quiet>true</quiet>
                     <encoding>UTF-8</encoding>
-                    <links>
-                        <link>http://docs.oracle.com/javase/8/docs/api/</link>
-                    </links>
                     <show>protected</show>
                     <detectLinks>true</detectLinks>
                     <excludePackageNames>*.examples:*.impl:*.internal</excludePackageNames>
