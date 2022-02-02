@@ -27,7 +27,6 @@ import org.apache.jena.graph.Graph;
 import org.apache.jena.graph.compose.MultiUnion;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
-import org.apache.jena.query.QueryExecutionFactory;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolutionMap;
 import org.apache.jena.rdf.model.Model;
@@ -44,7 +43,6 @@ import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import java.util.HashSet;
 import java.util.Set;
-import org.apache.jena.ontology.OntModel;
 import org.apache.jena.shared.PropertyNotFoundException;
 
 /**
@@ -93,22 +91,32 @@ public class SPINConstraints
      * @param model  the Model to operate on
      * @return a List of ConstraintViolations
      */
-    public static List<ConstraintViolation> check(OntModel model)
+    public static List<ConstraintViolation> check(Model model)
     {
-        return check(model, SPIN.constraint);
+        return check(model, SPIN.constraint, model);
     }
 
+    public static List<ConstraintViolation> check(Model model, Model constraintModel)
+    {
+        return check(model, SPIN.constraint, constraintModel);
+    }
+    
     /**
      * Checks all instances in a given Model and returns a List of constraint violations. 
      * @param model  the Model to operate on
      * @param predicate  the system property, e.g. a sub-property of spin:constraint
      * @return a List of ConstraintViolations
      */
-    public static List<ConstraintViolation> check(OntModel model, Property predicate)
+    public static List<ConstraintViolation> check(Model model, Property predicate)
+    {
+        return check(model, predicate, model);
+    }
+    
+    public static List<ConstraintViolation> check(Model model, Property predicate, Model constraintModel)
     {
         List<ConstraintViolation> cvs = new ArrayList<>();
         
-        Map<Resource, List<QueryWrapper>> class2Query = class2Query(model, predicate);
+        Map<Resource, List<QueryWrapper>> class2Query = class2Query(constraintModel, predicate);
         for (Resource cls : class2Query.keySet())
         {
             List<QueryWrapper> wrappers = class2Query.get(cls);
@@ -184,7 +192,7 @@ public class SPINConstraints
         return superClasses;
     }
 
-    protected static Map<Resource, List<QueryWrapper>> class2Query(OntModel model, Property predicate)
+    protected static Map<Resource, List<QueryWrapper>> class2Query(Model model, Property predicate)
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
                 
@@ -238,35 +246,6 @@ public class SPINConstraints
                 constraintIt.close();
             }
         }
-        
-//        if (cls.canAs(OntClass.class))
-//        {
-//            OntClass ontCls = cls.as(OntClass.class);
-//            ExtendedIterator<OntClass> classIt = ontCls.listSuperClasses();
-//            try
-//            {
-//                while (classIt.hasNext())
-//                {
-//                    OntClass superCls = classIt.next();
-//                    StmtIterator constraintIt = superCls.listProperties(predicate);
-//                    try
-//                    {
-//                        while (constraintIt.hasNext())
-//                        {
-//                            addClassContraints(constraintIt.next(), predicate, class2Query);
-//                        }
-//                    }
-//                    finally
-//                    {
-//                        constraintIt.close();
-//                    }
-//                }
-//            }
-//            finally
-//            {
-//                classIt.close();
-//            }
-//        }
     }
     
     protected static QueryWrapper createWrapper(Resource constraint)
@@ -311,7 +290,7 @@ public class SPINConstraints
 
                 qsm.add(SPIN.THIS_VAR_NAME, instance);
 
-                try (QueryExecution qex = QueryExecutionFactory.create(wrapper.getQuery(), model, qsm))
+                try (QueryExecution qex = QueryExecution.create().query(wrapper.getQuery()).model(model).initialBinding(qsm).build())
                 {
                     //ResultSetFormatter.out(System.out, qex.execSelect());
 
