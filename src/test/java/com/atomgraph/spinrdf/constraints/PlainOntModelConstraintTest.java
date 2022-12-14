@@ -25,6 +25,7 @@ import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.vocabulary.FOAF;
+import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.RDFS;
 import static org.junit.Assert.assertEquals;
 import org.junit.Test;
@@ -35,6 +36,11 @@ import org.junit.Test;
  */
 public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
 {
+    
+    static
+    {
+        JenaSystem.init();
+    }
     
     @Override
     public OntModel createOntModel()
