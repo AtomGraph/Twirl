@@ -16,10 +16,13 @@
  */
 package com.atomgraph.spinrdf.model;
 
+import org.apache.jena.ontology.OntDocumentManager;
 import org.apache.jena.ontology.OntModel;
 import org.apache.jena.ontology.OntModelSpec;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sys.JenaSystem;
+import org.apache.jena.util.LocationMapper;
+import org.junit.BeforeClass;
 
 /**
  *
@@ -31,6 +34,13 @@ public class PlainOntModelCommandImplTest extends InfOntModelCommandImplTest
     static
     {
         JenaSystem.init();
+    }
+    
+    @BeforeClass
+    public static void init()
+    {
+        LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
+        OntDocumentManager.getInstance().getFileManager().setLocationMapper(lm);
     }
     
     @Override
