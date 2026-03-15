@@ -29,10 +29,10 @@ import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.util.LocationMapper;
-import static org.junit.Assert.assertEquals;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  *
@@ -49,7 +49,7 @@ public class InfOntModelTemplateImplTest
         JenaSystem.init();
     }
     
-    @BeforeClass
+    @BeforeAll
     public static void init()
     {
         LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
@@ -62,7 +62,7 @@ public class InfOntModelTemplateImplTest
         return ModelFactory.createOntologyModel();
     }
     
-    @Before
+    @BeforeEach
     public void ontology()
     {
         ontModel = createOntModel();

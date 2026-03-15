@@ -22,7 +22,7 @@ import org.apache.jena.ontology.OntModelSpec;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.util.LocationMapper;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.BeforeAll;
 
 /**
  *
@@ -36,7 +36,7 @@ public class PlainOntModelCommandImplTest extends InfOntModelCommandImplTest
         JenaSystem.init();
     }
     
-    @BeforeClass
+    @BeforeAll
     public static void init()
     {
         LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
