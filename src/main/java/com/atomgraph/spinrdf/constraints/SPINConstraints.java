@@ -29,6 +29,10 @@ import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolutionMap;
+import org.apache.jena.sparql.core.Var;
+import org.apache.jena.sparql.engine.binding.Binding;
+import org.apache.jena.sparql.engine.binding.BindingBuilder;
+import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.Property;
@@ -277,9 +281,8 @@ public class SPINConstraints
     protected static List<ConstraintViolation> runQueryOnClass(QueryWrapper wrapper, Resource cls, Model model)
     {
         List<ConstraintViolation> cvs = new ArrayList<>();
-        
-        QuerySolutionMap qsm = new QuerySolutionMap();
-        qsm.addAll(wrapper.getQuerySolutionMap());
+
+        QuerySolutionMap qsm = wrapper.getQuerySolutionMap();
 
         ResIterator it = model.listSubjectsWithProperty(RDF.type, cls);
         try
@@ -288,9 +291,19 @@ public class SPINConstraints
             {
                 Resource instance = it.next();
 
-                qsm.add(SPIN.THIS_VAR_NAME, instance);
+                BindingBuilder bb = BindingFactory.builder();
+                // Add template arg bindings from QSM
+                Iterator<String> varNames = qsm.varNames();
+                while (varNames.hasNext())
+                {
+                    String varName = varNames.next();
+                    bb.add(Var.alloc(varName), qsm.get(varName).asNode());
+                }
+                bb.add(Var.alloc(SPIN.THIS_VAR_NAME), instance.asNode());
+                Binding binding = bb.build();
 
-                try (QueryExecution qex = QueryExecution.create().query(wrapper.getQuery()).model(model).initialBinding(qsm).build())
+                // QueryExecution.initialBinding() was replaced by .substitution() in Jena 6 — see https://github.com/apache/jena/issues/3267
+                try (QueryExecution qex = QueryExecution.create().query(wrapper.getQuery()).model(model).substitution(binding).build())
                 {
                     //ResultSetFormatter.out(System.out, qex.execSelect());
 

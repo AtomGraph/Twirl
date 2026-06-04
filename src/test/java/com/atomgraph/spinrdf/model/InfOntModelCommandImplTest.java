@@ -29,9 +29,10 @@ import org.apache.jena.shared.PropertyNotFoundException;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.util.LocationMapper;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  *
@@ -48,7 +49,7 @@ public class InfOntModelCommandImplTest
         JenaSystem.init();
     }
     
-    @BeforeClass
+    @BeforeAll
     public static void init()
     {
         LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
@@ -61,7 +62,7 @@ public class InfOntModelCommandImplTest
         return ModelFactory.createOntologyModel();
     }
     
-    @Before
+    @BeforeEach
     public void ontology()
     {
         ontModel = createOntModel();
@@ -74,16 +75,18 @@ public class InfOntModelCommandImplTest
         ontModel.loadImports();
     }
 
-    @Test(expected = PropertyNotFoundException.class)
+    @Test
     public void missingTemplateBody()
     {
-        getOntModel().createIndividual(SPIN.Template).as(Template.class).getBody(); // missing spin:body
+        assertThrows(PropertyNotFoundException.class, () ->
+                getOntModel().createIndividual(SPIN.Template).as(Template.class).getBody()); // missing spin:body
     }
 
-    @Test(expected = PropertyNotFoundException.class)
+    @Test
     public void missingQueryText()
     {
-        getOntModel().createIndividual(SP.Construct).as(Query.class).getText(); // missing sp:text
+        assertThrows(PropertyNotFoundException.class, () ->
+                getOntModel().createIndividual(SP.Construct).as(Query.class).getText()); // missing sp:text
     }
 
     public OntModel getOntModel()

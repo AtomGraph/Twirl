@@ -30,9 +30,9 @@ import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.util.LocationMapper;
 import org.apache.jena.vocabulary.RDFS;
-import static org.junit.Assert.assertEquals;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  *
@@ -46,7 +46,7 @@ public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
         JenaSystem.init();
     }
     
-    @BeforeClass
+    @BeforeAll
     public static void init()
     {
         LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");

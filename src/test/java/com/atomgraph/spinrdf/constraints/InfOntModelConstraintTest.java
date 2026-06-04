@@ -34,10 +34,11 @@ import org.apache.jena.util.LocationMapper;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
-import static org.junit.Assert.assertEquals;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Test;
 
 /**
  *
@@ -55,7 +56,7 @@ public class InfOntModelConstraintTest
         JenaSystem.init();
     }
     
-    @BeforeClass
+    @BeforeAll
     public static void init()
     {
         LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
@@ -68,7 +69,7 @@ public class InfOntModelConstraintTest
         return ModelFactory.createOntologyModel();
     }
     
-    @Before
+    @BeforeEach
     public void ontology()
     {
         ontModel = createOntModel();
@@ -115,7 +116,7 @@ public class InfOntModelConstraintTest
         assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(getOntModel(), SPIN.constraint).size()); // constraint ignored
     }
 
-    @Test(expected = QueryParseException.class)
+    @Test
     public void queryTextSyntaxError()
     {
         Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template).
@@ -124,8 +125,9 @@ public class InfOntModelConstraintTest
         Resource constraint = getOntModel().createIndividual("http://ontology/constraint", template);
         getOntModel().createIndividual("http://ontology/class", RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
-        
-        assertEquals(SYSTEM_CONSTRAINT_COUNT, SPINConstraints.class2Query(getOntModel(), SPIN.constraint).size());
+
+        assertThrows(QueryParseException.class, () ->
+                SPINConstraints.class2Query(getOntModel(), SPIN.constraint));
     }
 
     @Test
