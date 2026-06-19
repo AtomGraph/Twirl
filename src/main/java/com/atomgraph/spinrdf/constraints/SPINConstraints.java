@@ -35,6 +35,7 @@ import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.impl.ModelCom;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
@@ -119,7 +120,12 @@ public class SPINConstraints
     public static List<ConstraintViolation> check(Model model, Property predicate, Model constraintModel)
     {
         List<ConstraintViolation> cvs = new ArrayList<>();
-        
+
+        // Re-base the constraint model onto the SPIN-aware personality so that constraint resources resolve via
+        // canAs(Query)/canAs(TemplateCall) regardless of the caller's model type — plain Model, legacy OntModel, or
+        // ontapi OntModel (whose own profile-aware personality does not carry the SPIN implementations).
+        constraintModel = new ModelCom(constraintModel.getGraph(), SP.personality);
+
         Map<Resource, List<QueryWrapper>> class2Query = class2Query(constraintModel, predicate);
         for (Resource cls : class2Query.keySet())
         {

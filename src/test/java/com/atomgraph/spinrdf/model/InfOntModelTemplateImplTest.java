@@ -16,82 +16,71 @@
  */
 package com.atomgraph.spinrdf.model;
 
+import com.atomgraph.spinrdf.SpinSpecifications;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import com.atomgraph.spinrdf.vocabulary.SPL;
-import org.apache.jena.enhanced.BuiltinPersonalities;
-import org.apache.jena.ontology.OntDocumentManager;
-import org.apache.jena.ontology.OntModel;
-import org.apache.jena.ontology.Ontology;
-import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.ontapi.OntModelFactory;
+import org.apache.jena.ontapi.OntSpecification;
+import org.apache.jena.ontapi.model.OntModel;
 import org.apache.jena.rdf.model.Resource;
-import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.jena.util.LocationMapper;
+import org.apache.jena.vocabulary.RDF;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
+ * Exercises SPIN template/template-call/argument polymorphism directly on an RDFS-inferred ontapi {@link OntModel}
+ * whose personality carries the SPIN implementations (see {@link SpinSpecifications}).
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class InfOntModelTemplateImplTest
 {
-    
+
     private OntModel ontModel;
-    private Ontology ontology;
 
     static
     {
         JenaSystem.init();
     }
-    
-    @BeforeAll
-    public static void init()
-    {
-        LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
-        OntDocumentManager.getInstance().getFileManager().setLocationMapper(lm);
-        com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
-    }
-    
+
     public OntModel createOntModel()
     {
-        return ModelFactory.createOntologyModel();
+        return OntModelFactory.createModel(SpinSpecifications.spinAware(OntSpecification.OWL1_FULL_MEM_RDFS_INF));
     }
-    
+
     @BeforeEach
     public void ontology()
     {
         ontModel = createOntModel();
-        
-        ontology = ontModel.createOntology("http://ontology/");
-        ontology.addImport(ResourceFactory.createResource(SP.NS));
-        ontology.addImport(ResourceFactory.createResource(SPIN.NS));
-        ontology.addImport(ResourceFactory.createResource(SPL.NS));
-        ontology.addImport(FOAF.NAMESPACE);
-        ontModel.loadImports();
+
+        RDFDataMgr.read(ontModel, "etc/sp.ttl");
+        RDFDataMgr.read(ontModel, "etc/spin.ttl");
+        RDFDataMgr.read(ontModel, "etc/spl.spin.ttl");
+        RDFDataMgr.read(ontModel, "etc/foaf.owl");
     }
-    
+
     @Test
     public void testArguments()
     {
-        Resource argument = getOntModel().createIndividual("http://ontology/arg", SPL.Argument).
+        Resource argument = getOntModel().createResource("http://ontology/arg").addProperty(RDF.type, SPL.Argument).
                 addProperty(SPL.predicate, FOAF.name);
-        Resource template = getOntModel().createIndividual("http://ontology/template", SPIN.Template).
-                addProperty(SPIN.body, getOntModel().createIndividual(SP.Construct).
+        Resource template = getOntModel().createResource("http://ontology/template").addProperty(RDF.type, SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createResource().addProperty(RDF.type, SP.Construct).
                         addLiteral(SP.text, "CONSTRUCT WHERE { ?s ?p ?o }")).
                 addProperty(SPIN.constraint, argument);
-        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", template);
-        
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, template);
+
         assertEquals(argument.as(Argument.class), constraint.as(TemplateCall.class).getTemplate().getArguments(false).get(0));
     }
-    
+
     public OntModel getOntModel()
     {
         return ontModel;
     }
-    
+
 }

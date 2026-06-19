@@ -303,12 +303,16 @@ public class SP
         return null;
     }
     
-    static
-    {
-        SP.init(BuiltinPersonalities.model);
-    }
-    
-    public static void init(Personality<RDFNode> p)
+    /**
+     * SPIN-aware enhanced-node personality: a private copy of the standard personality with the SPIN model
+     * implementations ({@link Query}/{@link TemplateCall}/{@link Command}/...) registered. Self-contained — it does
+     * NOT mutate the global {@link BuiltinPersonalities#model}, so SPIN polymorphism composes with any model
+     * (plain, legacy, or ontapi) once a graph is wrapped in a Model that uses this personality, with no reliance on
+     * global registration or class-init order.
+     */
+    public static final Personality<RDFNode> personality = init(BuiltinPersonalities.model.copy());
+
+    public static Personality<RDFNode> init(Personality<RDFNode> p)
     {
         p.add(Template.class, TemplateImpl.factory);
         p.add(Argument.class, ArgumentImpl.factory);
@@ -316,6 +320,7 @@ public class SP
         p.add(Command.class, CommandImpl.factory);
         p.add(Query.class, QueryImpl.factory);
         p.add(Update.class, UpdateImpl.factory);
+        return p;
     }
     
 }

@@ -16,63 +16,56 @@
  */
 package com.atomgraph.spinrdf.constraints;
 
+import com.atomgraph.spinrdf.SpinSpecifications;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
 import com.atomgraph.spinrdf.vocabulary.SPL;
 import org.apache.jena.datatypes.xsd.XSDDatatype;
-import org.apache.jena.enhanced.BuiltinPersonalities;
-import org.apache.jena.ontology.OntDocumentManager;
-import org.apache.jena.ontology.OntModel;
-import org.apache.jena.ontology.OntModelSpec;
-import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.ontapi.OntModelFactory;
+import org.apache.jena.ontapi.OntSpecification;
+import org.apache.jena.ontapi.model.OntModel;
 import org.apache.jena.rdf.model.Resource;
 import org.apache.jena.rdf.model.ResourceFactory;
 import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.jena.util.LocationMapper;
+import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
+ * Same constraints as {@link InfOntModelConstraintTest} but over a non-inferring ontapi {@link OntModel}, so a
+ * constrained super-class only fires on instances reached via {@code SPINConstraints}' own subclass walk — not via
+ * RDFS type propagation. Hence the {@code classInheritance*} counts drop.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
 {
-    
+
     static
     {
         JenaSystem.init();
     }
-    
-    @BeforeAll
-    public static void init()
-    {
-        LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
-        OntDocumentManager.getInstance().getFileManager().setLocationMapper(lm);
-        com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
-    }
-    
+
     @Override
     public OntModel createOntModel()
     {
-        return ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
+        return OntModelFactory.createModel(SpinSpecifications.spinAware(OntSpecification.OWL1_FULL_MEM));
     }
-    
+
     @Test
     @Override
     public void classInheritance2()
     {
-        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
-        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
+        Resource superCls = getOntModel().createResource("http://ontology/super-class").addProperty(RDF.type, RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
-        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
                 addProperty(RDFS.subClassOf, superCls);
-        
-        getOntModel().createIndividual("http://data/instance", cls);
+
+        getOntModel().createResource("http://data/instance").addProperty(RDF.type, cls);
         assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
 
@@ -80,18 +73,18 @@ public class PlainOntModelConstraintTest extends InfOntModelConstraintTest
     @Override
     public void classInheritance3()
     {
-        Resource constraint = getOntModel().createIndividual("http://ontology/constraint", SPL.Attribute).
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
                 addProperty(SPL.predicate, FOAF.name).
                 addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
-        Resource superCls = getOntModel().createIndividual("http://ontology/super-class", RDFS.Class).
+        Resource superCls = getOntModel().createResource("http://ontology/super-class").addProperty(RDF.type, RDFS.Class).
                 addProperty(SPIN.constraint, constraint);
-        Resource cls = getOntModel().createIndividual("http://ontology/class", RDFS.Class).
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
                 addProperty(RDFS.subClassOf, superCls);
-        Resource subCls = getOntModel().createIndividual("http://ontology/sub-class", RDFS.Class).
+        Resource subCls = getOntModel().createResource("http://ontology/sub-class").addProperty(RDF.type, RDFS.Class).
                 addProperty(RDFS.subClassOf, cls);
-        
-        getOntModel().createIndividual("http://data/sub-instance", subCls);
+
+        getOntModel().createResource("http://data/sub-instance").addProperty(RDF.type, subCls);
         assertEquals(1, SPINConstraints.check(getOntModel()).size());
     }
-    
+
 }
