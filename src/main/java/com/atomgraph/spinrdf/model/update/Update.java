@@ -19,10 +19,11 @@ package com.atomgraph.spinrdf.model.update;
 import com.atomgraph.spinrdf.model.Command;
 
 /**
+ * A SPARQL Update request (e.g. {@code INSERT}/{@code DELETE}) represented in RDF using the SP vocabulary.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public interface Update extends Command
 {
-    
+
 }

@@ -17,12 +17,18 @@
 package com.atomgraph.spinrdf.model;
 
 /**
+ * A SPARQL query represented in RDF using the SP vocabulary. Provides access to the query both as SPARQL text
+ * (via {@link Command#getText()}) and as a parsed Jena query object.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public interface Query extends Command
 {
-    
+
+    /**
+     * Returns this SPIN query parsed into an executable Jena query.
+     * @return the parsed query
+     */
     org.apache.jena.query.Query asQuery();
-    
+
 }

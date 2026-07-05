@@ -19,12 +19,19 @@ package com.atomgraph.spinrdf.model;
 import org.apache.jena.rdf.model.Resource;
 
 /**
+ * A SPARQL command represented in RDF — the common supertype of SPIN {@link Query queries},
+ * {@link com.atomgraph.spinrdf.model.update.Update updates} and {@link TemplateCall template calls}. Every command
+ * can be rendered back to SPARQL text.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public interface Command extends Resource
 {
-    
+
+    /**
+     * Returns the SPARQL text of this command.
+     * @return the SPARQL string
+     */
     String getText();
 
 }

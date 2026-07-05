@@ -20,15 +20,22 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 
 /**
+ * A forward property path step: from the root resource along the predicate to its objects
+ * ({@code root predicate ?object}).
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class ObjectPropertyPath extends SimplePropertyPath
 {
-    
+
+    /**
+     * Constructs a forward property path step.
+     * @param root  the resource the path starts from
+     * @param predicate  the predicate traversed towards its objects
+     */
     public ObjectPropertyPath(Resource root, Property predicate)
     {
         super(root, predicate);
     }
-    
+
 }

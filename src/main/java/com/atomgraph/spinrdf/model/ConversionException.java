@@ -29,6 +29,10 @@ import org.apache.jena.shared.JenaException;
 public class ConversionException extends JenaException
 {
 
+    /**
+     * Constructs a new exception with the given detail message.
+     * @param message  the detail message
+     */
     public ConversionException(String message)
     {
         super(message);
