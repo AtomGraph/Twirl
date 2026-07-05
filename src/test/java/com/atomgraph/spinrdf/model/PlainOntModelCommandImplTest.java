@@ -16,13 +16,11 @@
  */
 package com.atomgraph.spinrdf.model;
 
-import org.apache.jena.ontology.OntDocumentManager;
-import org.apache.jena.ontology.OntModel;
-import org.apache.jena.ontology.OntModelSpec;
-import org.apache.jena.rdf.model.ModelFactory;
+import com.atomgraph.spinrdf.SpinSpecifications;
+import org.apache.jena.ontapi.OntModelFactory;
+import org.apache.jena.ontapi.OntSpecification;
+import org.apache.jena.ontapi.model.OntModel;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.jena.util.LocationMapper;
-import org.junit.jupiter.api.BeforeAll;
 
 /**
  *
@@ -30,23 +28,16 @@ import org.junit.jupiter.api.BeforeAll;
  */
 public class PlainOntModelCommandImplTest extends InfOntModelCommandImplTest
 {
-    
+
     static
     {
         JenaSystem.init();
     }
-    
-    @BeforeAll
-    public static void init()
-    {
-        LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
-        OntDocumentManager.getInstance().getFileManager().setLocationMapper(lm);
-    }
-    
+
     @Override
     public OntModel createOntModel()
     {
-        return ModelFactory.createOntologyModel(OntModelSpec.OWL_MEM);
+        return OntModelFactory.createModel(SpinSpecifications.spinAware(OntSpecification.OWL1_FULL_MEM));
     }
-    
+
 }

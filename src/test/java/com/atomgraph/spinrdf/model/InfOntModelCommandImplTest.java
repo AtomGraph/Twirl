@@ -16,82 +16,69 @@
  */
 package com.atomgraph.spinrdf.model;
 
+import com.atomgraph.spinrdf.SpinSpecifications;
 import com.atomgraph.spinrdf.vocabulary.SP;
 import com.atomgraph.spinrdf.vocabulary.SPIN;
-import com.atomgraph.spinrdf.vocabulary.SPL;
-import org.apache.jena.enhanced.BuiltinPersonalities;
-import org.apache.jena.ontology.OntDocumentManager;
-import org.apache.jena.ontology.OntModel;
-import org.apache.jena.ontology.Ontology;
-import org.apache.jena.rdf.model.ModelFactory;
-import org.apache.jena.rdf.model.ResourceFactory;
+import org.apache.jena.ontapi.OntModelFactory;
+import org.apache.jena.ontapi.OntSpecification;
+import org.apache.jena.ontapi.model.OntModel;
+import org.apache.jena.riot.RDFDataMgr;
 import org.apache.jena.shared.PropertyNotFoundException;
-import org.apache.jena.sparql.vocabulary.FOAF;
 import org.apache.jena.sys.JenaSystem;
-import org.apache.jena.util.LocationMapper;
+import org.apache.jena.vocabulary.RDF;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
+ * Exercises the SPIN model polymorphism ({@code as(Template)}/{@code as(Query)}) directly on an RDFS-inferred ontapi
+ * {@link OntModel} whose personality carries the SPIN implementations (see {@link SpinSpecifications}).
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class InfOntModelCommandImplTest
 {
-    
+
     private OntModel ontModel;
-    private Ontology ontology;
 
     static
     {
         JenaSystem.init();
     }
-    
-    @BeforeAll
-    public static void init()
-    {
-        LocationMapper lm = new LocationMapper("etc/location-mapping.ttl");
-        OntDocumentManager.getInstance().getFileManager().setLocationMapper(lm);
-        com.atomgraph.spinrdf.vocabulary.SP.init(BuiltinPersonalities.model);
-    }
-    
+
     public OntModel createOntModel()
     {
-        return ModelFactory.createOntologyModel();
+        return OntModelFactory.createModel(SpinSpecifications.spinAware(OntSpecification.OWL1_FULL_MEM_RDFS_INF));
     }
-    
+
     @BeforeEach
     public void ontology()
     {
         ontModel = createOntModel();
-        
-        ontology = ontModel.createOntology("http://ontology/");
-        ontology.addImport(ResourceFactory.createResource(SP.NS));
-        ontology.addImport(ResourceFactory.createResource(SPIN.NS));
-        ontology.addImport(ResourceFactory.createResource(SPL.NS));
-        ontology.addImport(FOAF.NAMESPACE);
-        ontModel.loadImports();
+
+        RDFDataMgr.read(ontModel, "etc/sp.ttl");
+        RDFDataMgr.read(ontModel, "etc/spin.ttl");
+        RDFDataMgr.read(ontModel, "etc/spl.spin.ttl");
+        RDFDataMgr.read(ontModel, "etc/foaf.owl");
     }
 
     @Test
     public void missingTemplateBody()
     {
         assertThrows(PropertyNotFoundException.class, () ->
-                getOntModel().createIndividual(SPIN.Template).as(Template.class).getBody()); // missing spin:body
+                getOntModel().createResource().addProperty(RDF.type, SPIN.Template).as(Template.class).getBody()); // missing spin:body
     }
 
     @Test
     public void missingQueryText()
     {
         assertThrows(PropertyNotFoundException.class, () ->
-                getOntModel().createIndividual(SP.Construct).as(Query.class).getText()); // missing sp:text
+                getOntModel().createResource().addProperty(RDF.type, SP.Construct).as(Query.class).getText()); // missing sp:text
     }
 
     public OntModel getOntModel()
     {
         return ontModel;
     }
-    
+
 }

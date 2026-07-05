@@ -21,16 +21,31 @@ import java.util.Map;
 import org.apache.jena.rdf.model.Resource;
 
 /**
+ * A SPIN template: a reusable, parameterized SPARQL query or update identified by an {@code spin:Template}
+ * resource. A template declares {@link Argument}s and holds a query body into which argument values are bound.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public interface Template extends Resource
 {
-    
+
+    /**
+     * Returns the arguments declared by this template.
+     * @param ordered  if {@code true}, the arguments are sorted by their index
+     * @return the list of arguments (never {@code null})
+     */
     List<Argument> getArguments(boolean ordered);
-    
+
+    /**
+     * Returns the declared arguments keyed by their variable name.
+     * @return a map from variable name to argument (never {@code null})
+     */
     Map<String, Argument> getArgumentsMap();
-    
+
+    /**
+     * Returns the query or update that forms the body of this template.
+     * @return the template body, or {@code null} if none is declared
+     */
     Query getBody();
-    
+
 }

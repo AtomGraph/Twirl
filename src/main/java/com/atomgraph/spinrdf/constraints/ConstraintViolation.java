@@ -23,6 +23,10 @@ import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.Resource;
 
 /**
+ * A violation of a SPIN constraint, produced when a constraint query matches an instance. It records the offending
+ * root resource, the property paths and value involved, a human-readable message, the severity level and any
+ * suggested fixes. Instances are turned into {@code spin:ConstraintViolation} triples by
+ * {@link SPINConstraints#addConstraintViolationsRDF(java.util.List, org.apache.jena.rdf.model.Model, boolean)}.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
@@ -67,30 +71,50 @@ public class ConstraintViolation
     }
     
     
+    /**
+     * Returns the suggested fixes for this violation.
+     * @return the fixes (never {@code null}, may be empty)
+     */
     public Collection<TemplateCall> getFixes()
     {
         return fixes;
     }
-    
-    
+
+
+    /**
+     * Returns the severity level of this violation.
+     * @return the level, defaulting to {@link SPIN#Error} when none was set
+     */
     public Resource getLevel()
     {
         return level == null ? SPIN.Error : level;
     }
-    
-    
+
+
+    /**
+     * Returns the human-readable message explaining this violation.
+     * @return the message, or {@code null} if none was given
+     */
     public String getMessage()
     {
         return message;
     }
-    
-    
+
+
+    /**
+     * Returns the property paths that this violation applies to.
+     * @return the paths (never {@code null}, may be empty)
+     */
     public Collection<SimplePropertyPath> getPaths()
     {
         return paths;
     }
-    
 
+
+    /**
+     * Returns the root resource that violates the constraint.
+     * @return the root resource
+     */
     public Resource getRoot()
     {
         return root;
@@ -107,6 +131,10 @@ public class ConstraintViolation
     }
     
     
+    /**
+     * Returns the value that caused this violation.
+     * @return the offending value, or {@code null} if not applicable
+     */
     public RDFNode getValue()
     {
         return value;
@@ -123,12 +151,20 @@ public class ConstraintViolation
     }
     
     
+    /**
+     * Sets the severity level of this violation.
+     * @param level  the level (e.g. {@link SPIN#Error} or {@link SPIN#Fatal})
+     */
     public void setLevel(Resource level)
     {
         this.level = level;
     }
-    
-    
+
+
+    /**
+     * Sets the value that caused this violation.
+     * @param value  the offending value
+     */
     public void setValue(RDFNode value)
     {
         this.value = value;

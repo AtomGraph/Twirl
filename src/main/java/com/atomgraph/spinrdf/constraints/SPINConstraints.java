@@ -35,6 +35,7 @@ import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.impl.ModelCom;
 import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.RDFNode;
 import org.apache.jena.rdf.model.ResIterator;
@@ -50,41 +51,69 @@ import java.util.Set;
 import org.apache.jena.shared.PropertyNotFoundException;
 
 /**
+ * Entry point for validating RDF data against SPIN constraints. It inspects a model for {@code spin:constraint}
+ * definitions attached to classes, executes each constraint's CONSTRUCT query against the instances of those
+ * classes (and their subclasses) and collects the resulting {@link ConstraintViolation}s. Only CONSTRUCT-based
+ * constraints are supported; ASK constraints are not.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class SPINConstraints
 {
-    
+
+    private SPINConstraints() { }
+
+    /**
+     * Pairs a parsed constraint query with the resource it originates from and the variable bindings (template
+     * arguments) to apply when executing it.
+     */
     public static class QueryWrapper
     {
-        
+
         private final Resource source;
         private final Query query;
         private final QuerySolutionMap qsm;
-        
+
+        /**
+         * Constructs a query wrapper.
+         * @param source  the SPIN query or template call the constraint originates from
+         * @param query  the parsed SPARQL query
+         * @param qsm  the variable bindings (template arguments) to apply
+         */
         public QueryWrapper(Resource source, Query query, QuerySolutionMap qsm)
         {
             this.source = source;
             this.query = query;
             this.qsm = qsm;
         }
-        
+
+        /**
+         * Returns the SPIN query or template call this constraint originates from.
+         * @return the source resource
+         */
         public Resource getSource()
         {
             return source;
         }
-        
+
+        /**
+         * Returns the parsed SPARQL query.
+         * @return the query
+         */
         public Query getQuery()
         {
             return query;
         }
-        
+
+        /**
+         * Returns the variable bindings (template arguments) to apply when executing the query.
+         * @return the query solution map
+         */
         public QuerySolutionMap getQuerySolutionMap()
         {
             return qsm;
         }
-        
+
     }
     
     /**
@@ -100,6 +129,13 @@ public class SPINConstraints
         return check(model, SPIN.constraint, model);
     }
 
+    /**
+     * Checks all instances in a given Model against the {@code spin:constraint}s found in a separate constraint
+     * Model and returns a List of constraint violations.
+     * @param model  the Model whose instances are validated
+     * @param constraintModel  the Model that holds the constraint definitions
+     * @return a List of ConstraintViolations
+     */
     public static List<ConstraintViolation> check(Model model, Model constraintModel)
     {
         return check(model, SPIN.constraint, constraintModel);
@@ -116,10 +152,23 @@ public class SPINConstraints
         return check(model, predicate, model);
     }
     
+    /**
+     * Checks all instances in a given Model against constraints declared with a given predicate in a separate
+     * constraint Model and returns a List of constraint violations.
+     * @param model  the Model whose instances are validated
+     * @param predicate  the system property, e.g. a sub-property of {@code spin:constraint}
+     * @param constraintModel  the Model that holds the constraint definitions
+     * @return a List of ConstraintViolations
+     */
     public static List<ConstraintViolation> check(Model model, Property predicate, Model constraintModel)
     {
         List<ConstraintViolation> cvs = new ArrayList<>();
-        
+
+        // Re-base the constraint model onto the SPIN-aware personality so that constraint resources resolve via
+        // canAs(Query)/canAs(TemplateCall) regardless of the caller's model type — plain Model, legacy OntModel, or
+        // ontapi OntModel (whose own profile-aware personality does not carry the SPIN implementations).
+        constraintModel = new ModelCom(constraintModel.getGraph(), SP.personality);
+
         Map<Resource, List<QueryWrapper>> class2Query = class2Query(constraintModel, predicate);
         for (Resource cls : class2Query.keySet())
         {
@@ -138,6 +187,11 @@ public class SPINConstraints
         return cvs;
     }
     
+    /**
+     * Collects all direct and transitive {@code rdfs:subClassOf} subclasses of a class.
+     * @param cls  the class whose subclasses are collected
+     * @return the set of subclasses (excluding the class itself)
+     */
     protected static Set<Resource> getSubClasses(Resource cls)
     {
         Set<Resource> subClasses = new HashSet<>();
@@ -167,6 +221,11 @@ public class SPINConstraints
         return subClasses;
     }
 
+    /**
+     * Collects the {@code rdfs:subClassOf} superclasses of a class.
+     * @param cls  the class whose superclasses are collected
+     * @return the set of superclasses (excluding the class itself)
+     */
     protected static Set<Resource> getSuperClasses(Resource cls)
     {
         Set<Resource> superClasses = new HashSet<>();
@@ -196,6 +255,12 @@ public class SPINConstraints
         return superClasses;
     }
 
+    /**
+     * Builds a map from each class to the constraint queries attached to it via the given predicate.
+     * @param model  the Model to scan for constraint definitions
+     * @param predicate  the constraint predicate, e.g. {@code spin:constraint}
+     * @return a map from class to its constraint query wrappers
+     */
     protected static Map<Resource, List<QueryWrapper>> class2Query(Model model, Property predicate)
     {
         Map<Resource, List<QueryWrapper>> class2Query = new HashMap<>();
@@ -217,6 +282,13 @@ public class SPINConstraints
         return class2Query;
     }
     
+    /**
+     * Adds the constraint carried by a statement to the class-to-query map, and recursively adds the constraints
+     * inherited from the class's superclasses.
+     * @param stmt  the statement linking a class to a constraint via the predicate
+     * @param predicate  the constraint predicate, e.g. {@code spin:constraint}
+     * @param class2Query  the map to populate
+     */
     protected static void addClassContraints(Statement stmt, Property predicate, Map<Resource, List<QueryWrapper>> class2Query)
     {
         Resource cls = stmt.getSubject();
@@ -252,6 +324,12 @@ public class SPINConstraints
         }
     }
     
+    /**
+     * Creates a query wrapper for a constraint resource, parsing its SPARQL text and collecting any template
+     * argument bindings.
+     * @param constraint  the constraint resource (a SPIN query or template call)
+     * @return the query wrapper, or {@code null} if the constraint is not a usable query
+     */
     protected static QueryWrapper createWrapper(Resource constraint)
     {
         final Query constraintQuery;
@@ -278,6 +356,14 @@ public class SPINConstraints
         return new QueryWrapper(constraint, constraintQuery, qsm);
     }
     
+    /**
+     * Executes a constraint query against every instance of a class and collects the resulting violations. The
+     * query is run once per instance, with {@code ?this} bound to the instance.
+     * @param wrapper  the constraint query to execute
+     * @param cls  the class whose instances are checked
+     * @param model  the Model to query for instances
+     * @return the constraint violations produced for the class's instances
+     */
     protected static List<ConstraintViolation> runQueryOnClass(QueryWrapper wrapper, Resource cls, Model model)
     {
         List<ConstraintViolation> cvs = new ArrayList<>();

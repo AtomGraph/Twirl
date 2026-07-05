@@ -19,14 +19,24 @@ package com.atomgraph.spinrdf.model;
 import org.apache.jena.query.QuerySolutionMap;
 
 /**
+ * An invocation of a SPIN {@link Template} with concrete argument values. A template call resolves to the
+ * template's body query with its arguments bound to the supplied values.
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public interface TemplateCall extends Command
 {
-    
+
+    /**
+     * Returns the template that this call invokes.
+     * @return the template, or {@code null} if it cannot be resolved
+     */
     Template getTemplate();
-    
+
+    /**
+     * Returns the argument values of this call as a variable binding suitable for query execution.
+     * @return the initial binding (never {@code null})
+     */
     QuerySolutionMap getInitialBinding();
 
 }

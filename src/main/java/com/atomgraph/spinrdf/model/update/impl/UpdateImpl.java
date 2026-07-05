@@ -23,7 +23,7 @@ import org.apache.jena.enhanced.EnhGraph;
 import org.apache.jena.enhanced.EnhNode;
 import org.apache.jena.enhanced.Implementation;
 import org.apache.jena.graph.Node;
-import org.apache.jena.ontology.ConversionException;
+import com.atomgraph.spinrdf.model.ConversionException;
 import org.apache.jena.vocabulary.RDF;
 
 /**

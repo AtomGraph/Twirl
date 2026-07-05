@@ -20,15 +20,22 @@ import org.apache.jena.rdf.model.Property;
 import org.apache.jena.rdf.model.Resource;
 
 /**
+ * A reverse property path step: from the root resource back along the predicate to its subjects
+ * ({@code ?subject predicate root}).
  *
  * @author Martynas Jusevičius {@literal <martynas@atomgraph.com>}
  */
 public class SubjectPropertyPath extends SimplePropertyPath
 {
-    
+
+    /**
+     * Constructs a reverse property path step.
+     * @param root  the resource the path starts from
+     * @param predicate  the predicate traversed back towards its subjects
+     */
     public SubjectPropertyPath(Resource root, Property predicate)
     {
         super(root, predicate);
     }
-    
+
 }
