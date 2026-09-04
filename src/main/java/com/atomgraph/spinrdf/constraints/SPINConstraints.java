@@ -393,7 +393,7 @@ public class SPINConstraints
                 {
                     //ResultSetFormatter.out(System.out, qex.execSelect());
 
-                    cvs.addAll(convertToConstraintViolations(qex.execConstruct(), model, cls, null, null, wrapper.getSource()));
+                    cvs.addAll(convertToConstraintViolations(qex.execConstruct(), model, null, null, wrapper.getSource(), instance));
                 }
             }
         }
@@ -408,10 +408,10 @@ public class SPINConstraints
     private static List<ConstraintViolation> convertToConstraintViolations(
             Model cm,
             Model model,
-            Resource atClass,
             Resource matchRoot,
             String label,
-            Resource source)
+            Resource source,
+            Resource instance)
     {
         List<ConstraintViolation> results = new ArrayList<>();
 
@@ -419,29 +419,44 @@ public class SPINConstraints
         while(it.hasNext()) {
             Statement s = it.nextStatement();
             Resource vio = s.getSubject();
-            
+
             Resource root = null;
             Statement rootS = vio.getProperty(SPIN.violationRoot);
             if (rootS != null && rootS.getObject().isResource()) {
                 root = rootS.getResource().inModel(model);
+                // substitution() inlines a blank-node ?this into the CONSTRUCT template, where instantiation
+                // relabels it per row like any template bnode, severing its link to the checked instance (URIs
+                // survive — only bnode instances are affected). A bnode root absent from the checked model can
+                // only be that relabeling artifact, so restore the instance it stood for. If a template ever
+                // emits ?this as spin:violationValue, that position needs the same repair.
+                if (instance != null && root.isAnon()
+                        && !model.contains(root, null, (RDFNode) null) && !model.contains(null, null, root))
+                    root = instance;
             }
             if (matchRoot == null || matchRoot.equals(root)) {
-                
+
+                // per-violation message: the CONSTRUCT-emitted rdfs:label wins, then the caller-supplied
+                // label, then the constraint resource's own rdfs:label. No authored label means no message -
+                // a violation must not grow boilerplate text that consumers could mistake for an authored
+                // constraint message, and one violation's label must not leak into the next (the label
+                // parameter used to double as the loop accumulator)
+                String message = label;
                 Statement labelS = vio.getProperty(RDFS.label);
                 if (labelS != null && labelS.getObject().isLiteral()) {
-                    label = labelS.getString();
+                    message = labelS.getString();
                 }
-                else if (label == null) {
-                    label = "SPIN constraint at " + getLabel(atClass);
+                else if (message == null && source != null) {
+                    Statement sourceLabelS = source.getProperty(RDFS.label);
+                    if (sourceLabelS != null && sourceLabelS.getObject().isLiteral()) message = sourceLabelS.getString();
                 }
-                
+
                 List<SimplePropertyPath> paths = getViolationPaths(model, vio, root);
                 List<TemplateCall> fixes = getFixes(cm, model, vio);
-                                
+
                 RDFNode value = vio.hasProperty(SPIN.violationValue) ? vio.getRequiredProperty(SPIN.violationValue).getObject() : null;
                 Resource level = vio.hasProperty(SPIN.violationLevel) ? vio.getPropertyResourceValue(SPIN.violationLevel) : null;
-                                
-                results.add(createConstraintViolation(paths, value, fixes, root, label, source, level));
+
+                results.add(createConstraintViolation(paths, value, fixes, root, message, source, level));
             }
         }
         
