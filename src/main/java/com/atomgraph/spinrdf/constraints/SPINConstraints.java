@@ -24,15 +24,26 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import org.apache.jena.graph.Graph;
+import org.apache.jena.graph.Node;
 import org.apache.jena.graph.compose.MultiUnion;
 import org.apache.jena.query.Query;
 import org.apache.jena.query.QueryExecution;
 import org.apache.jena.query.QueryFactory;
 import org.apache.jena.query.QuerySolutionMap;
+import org.apache.jena.sparql.core.Quad;
 import org.apache.jena.sparql.core.Var;
 import org.apache.jena.sparql.engine.binding.Binding;
 import org.apache.jena.sparql.engine.binding.BindingBuilder;
 import org.apache.jena.sparql.engine.binding.BindingFactory;
+import org.apache.jena.sparql.expr.ExprVar;
+import org.apache.jena.sparql.graph.NodeTransform;
+import org.apache.jena.sparql.graph.NodeTransformLib;
+import org.apache.jena.sparql.modify.request.QuadAcc;
+import org.apache.jena.sparql.syntax.Element;
+import org.apache.jena.sparql.syntax.ElementBind;
+import org.apache.jena.sparql.syntax.ElementGroup;
+import org.apache.jena.sparql.syntax.PatternVars;
+import org.apache.jena.sparql.syntax.Template;
 import org.apache.jena.rdf.model.Model;
 import org.apache.jena.rdf.model.ModelFactory;
 import org.apache.jena.rdf.model.impl.ModelCom;
@@ -339,7 +350,7 @@ public class SPINConstraints
             try
             {
                 com.atomgraph.spinrdf.model.Query query = constraint.as(com.atomgraph.spinrdf.model.Query.class);
-                constraintQuery = QueryFactory.create(query.getText());
+                constraintQuery = bindThisInTemplate(QueryFactory.create(query.getText()));
             }
             catch (PropertyNotFoundException ex)
             {
@@ -356,6 +367,62 @@ public class SPINConstraints
         return new QueryWrapper(constraint, constraintQuery, qsm);
     }
     
+    /**
+     * Routes {@code ?this} into the CONSTRUCT template through the WHERE clause. {@code QueryExecution.substitution()}
+     * rewrites the parsed query syntactically, so a blank-node instance substituted for {@code ?this} becomes a
+     * blank node written in the template, and template instantiation mints a fresh one per solution (SPARQL 1.1
+     * Query, "Templates with Blank Nodes"): the violation root then denotes nothing in the checked model. Named
+     * instances are unaffected, because an IRI written in a template is a constant. Renaming the template's
+     * {@code ?this} to a fresh variable and binding that variable from {@code ?this} at the end of the WHERE clause
+     * keeps the substituted term out of the template: the instance reaches it as a variable value, which
+     * instantiation copies through unchanged, as the pre-Jena 6 initial binding did. The WHERE clause still sees the
+     * substituted constant everywhere, filters included, and the appended BIND adds no rows. A query that groups
+     * has the fresh variable added to its GROUP BY, or grouping would hide it from the template.
+     * The SPARQL text of the constraint is not touched; only the parsed query is.
+     * @param query  the parsed constraint query, modified in place
+     * @return the same query
+     */
+    protected static Query bindThisInTemplate(Query query)
+    {
+        if (!query.isConstructType()) return query;
+
+        Var thisVar = Var.alloc(SPIN.THIS_VAR_NAME);
+        Template template = query.getConstructTemplate();
+
+        Set<Var> templateVars = new HashSet<>();
+        for (Quad quad : template.getQuads())
+            for (Node node : List.of(quad.getGraph(), quad.getSubject(), quad.getPredicate(), quad.getObject()))
+                if (Var.isVar(node)) templateVars.add(Var.alloc(node));
+        if (!templateVars.contains(thisVar)) return query;
+
+        // a variable the query does not use anywhere - pattern, sub-selects, template, GROUP BY
+        Set<Var> usedVars = new HashSet<>(templateVars);
+        usedVars.addAll(PatternVars.vars(query.getQueryPattern()));
+        usedVars.addAll(query.getGroupBy().getVars());
+        Var freshVar = Var.alloc(SPIN.THIS_VAR_NAME + "_");
+        while (usedVars.contains(freshVar)) freshVar = Var.alloc(freshVar.getVarName() + "_");
+        final Var boundVar = freshVar;
+
+        NodeTransform rename = node -> thisVar.equals(node) ? boundVar : node;
+        if (template.containsRealQuad()) query.setConstructTemplate(new Template(new QuadAcc(NodeTransformLib.transformQuads(rename, template.getQuads()))));
+        else query.setConstructTemplate(new Template(NodeTransformLib.transform(rename, template.getBGP())));
+
+        Element pattern = query.getQueryPattern();
+        final ElementGroup group;
+        if (pattern instanceof ElementGroup elementGroup) group = elementGroup;
+        else
+        {
+            group = new ElementGroup();
+            if (pattern != null) group.addElement(pattern);
+        }
+        group.addElement(new ElementBind(boundVar, new ExprVar(thisVar)));
+        query.setQueryPattern(group);
+
+        if (query.hasGroupBy()) query.addGroupBy(boundVar);
+
+        return query;
+    }
+
     /**
      * Executes a constraint query against every instance of a class and collects the resulting violations. The
      * query is run once per instance, with {@code ?this} bound to the instance.
@@ -393,7 +460,7 @@ public class SPINConstraints
                 {
                     //ResultSetFormatter.out(System.out, qex.execSelect());
 
-                    cvs.addAll(convertToConstraintViolations(qex.execConstruct(), model, null, null, wrapper.getSource(), instance));
+                    cvs.addAll(convertToConstraintViolations(qex.execConstruct(), model, null, null, wrapper.getSource()));
                 }
             }
         }
@@ -410,8 +477,7 @@ public class SPINConstraints
             Model model,
             Resource matchRoot,
             String label,
-            Resource source,
-            Resource instance)
+            Resource source)
     {
         List<ConstraintViolation> results = new ArrayList<>();
 
@@ -424,14 +490,6 @@ public class SPINConstraints
             Statement rootS = vio.getProperty(SPIN.violationRoot);
             if (rootS != null && rootS.getObject().isResource()) {
                 root = rootS.getResource().inModel(model);
-                // substitution() inlines a blank-node ?this into the CONSTRUCT template, where instantiation
-                // relabels it per row like any template bnode, severing its link to the checked instance (URIs
-                // survive — only bnode instances are affected). A bnode root absent from the checked model can
-                // only be that relabeling artifact, so restore the instance it stood for. If a template ever
-                // emits ?this as spin:violationValue, that position needs the same repair.
-                if (instance != null && root.isAnon()
-                        && !model.contains(root, null, (RDFNode) null) && !model.contains(null, null, root))
-                    root = instance;
             }
             if (matchRoot == null || matchRoot.equals(root)) {
 

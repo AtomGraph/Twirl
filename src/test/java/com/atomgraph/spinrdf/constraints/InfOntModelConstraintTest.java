@@ -204,9 +204,9 @@ public class InfOntModelConstraintTest
     }
 
     // the checked instance is a blank node (e.g. an unsaved resource in a POSTed request body), and the
-    // violation root must still be that very node — not a bnode freshly minted by CONSTRUCT template
-    // instantiation. ?this only round-trips through the query for IRIs; for bnodes the identity has to
-    // survive by other means, which is what these tests pin down
+    // violation root must still be that very node - not a bnode freshly minted by CONSTRUCT template
+    // instantiation. A substituted ?this only round-trips through the template for IRIs; for bnodes the
+    // identity has to reach the template as a variable value, which is what these tests pin down
     @Test
     public void anonInstanceViolationRoot()
     {
@@ -241,6 +241,58 @@ public class InfOntModelConstraintTest
         // them into the request model for the error response
         SPINConstraints.addConstraintViolationsRDF(cvs, getOntModel(), true);
         assertTrue(getOntModel().contains(null, SPIN.violationRoot, instance)); // root must not dangle
+    }
+
+    // ?this in any template position, not only spin:violationRoot, must denote the checked blank node
+    @Test
+    public void anonInstanceViolationValue()
+    {
+        Resource template = getOntModel().createResource("http://ontology/template").addProperty(RDF.type, SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createResource().addProperty(RDF.type, SP.Construct).
+                        addProperty(SP.text, """
+                            PREFIX spin: <http://spinrdf.org/spin#>
+                            CONSTRUCT {
+                                _:a a spin:ConstraintViolation .
+                                _:a spin:violationRoot ?this .
+                                _:a spin:violationValue ?this .
+                            }
+                            WHERE {}"""));
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, template);
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource().addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals(instance, cvs.get(0).getRoot());
+        assertEquals(instance, cvs.get(0).getValue());
+    }
+
+    // the variable the template is rerouted through must not collide with one the constraint body already uses
+    @Test
+    public void anonInstanceViolationRootWithThisUnderscoreInBody()
+    {
+        Resource template = getOntModel().createResource("http://ontology/template").addProperty(RDF.type, SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createResource().addProperty(RDF.type, SP.Construct).
+                        addProperty(SP.text, """
+                            PREFIX spin: <http://spinrdf.org/spin#>
+                            CONSTRUCT {
+                                _:a a spin:ConstraintViolation .
+                                _:a spin:violationRoot ?this .
+                                _:a spin:violationValue ?this_ .
+                            }
+                            WHERE { BIND ("taken" AS ?this_) }"""));
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, template);
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource().addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals(instance, cvs.get(0).getRoot());
+        assertEquals("taken", cvs.get(0).getValue().asLiteral().getString());
     }
 
     // the violation message is the constraint's own authored rdfs:label - the channel the SPINConstraints
