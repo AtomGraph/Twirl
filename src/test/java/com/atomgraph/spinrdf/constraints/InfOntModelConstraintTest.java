@@ -33,8 +33,15 @@ import org.apache.jena.sys.JenaSystem;
 import org.apache.jena.vocabulary.RDF;
 import org.apache.jena.vocabulary.RDFS;
 import org.apache.jena.vocabulary.XSD;
+import java.util.List;
+import org.apache.jena.rdf.model.Model;
+import org.apache.jena.rdf.model.ModelFactory;
+import org.apache.jena.rdf.model.RDFNode;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -178,6 +185,184 @@ public class InfOntModelConstraintTest
         getOntModel().createResource("http://data/instance").addProperty(RDF.type, cls);
 
         assertEquals(1, SPINConstraints.check(getOntModel()).size());
+    }
+
+    @Test
+    public void namedInstanceViolationRoot()
+    {
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource("http://data/instance").addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals(instance, cvs.get(0).getRoot()); // spin:violationRoot ?this must resolve to the checked instance
+    }
+
+    // the checked instance is a blank node (e.g. an unsaved resource in a POSTed request body), and the
+    // violation root must still be that very node - not a bnode freshly minted by CONSTRUCT template
+    // instantiation. A substituted ?this only round-trips through the template for IRIs; for bnodes the
+    // identity has to reach the template as a variable value, which is what these tests pin down
+    @Test
+    public void anonInstanceViolationRoot()
+    {
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource().addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals(instance, cvs.get(0).getRoot());
+    }
+
+    @Test
+    public void anonInstanceViolationRootRDF()
+    {
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource().addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+
+        // add the violations into the model that holds the instance, the way a validating server merges
+        // them into the request model for the error response
+        SPINConstraints.addConstraintViolationsRDF(cvs, getOntModel(), true);
+        assertTrue(getOntModel().contains(null, SPIN.violationRoot, instance)); // root must not dangle
+    }
+
+    // ?this in any template position, not only spin:violationRoot, must denote the checked blank node
+    @Test
+    public void anonInstanceViolationValue()
+    {
+        Resource template = getOntModel().createResource("http://ontology/template").addProperty(RDF.type, SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createResource().addProperty(RDF.type, SP.Construct).
+                        addProperty(SP.text, """
+                            PREFIX spin: <http://spinrdf.org/spin#>
+                            CONSTRUCT {
+                                _:a a spin:ConstraintViolation .
+                                _:a spin:violationRoot ?this .
+                                _:a spin:violationValue ?this .
+                            }
+                            WHERE {}"""));
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, template);
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource().addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals(instance, cvs.get(0).getRoot());
+        assertEquals(instance, cvs.get(0).getValue());
+    }
+
+    // the variable the template is rerouted through must not collide with one the constraint body already uses
+    @Test
+    public void anonInstanceViolationRootWithThisUnderscoreInBody()
+    {
+        Resource template = getOntModel().createResource("http://ontology/template").addProperty(RDF.type, SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createResource().addProperty(RDF.type, SP.Construct).
+                        addProperty(SP.text, """
+                            PREFIX spin: <http://spinrdf.org/spin#>
+                            CONSTRUCT {
+                                _:a a spin:ConstraintViolation .
+                                _:a spin:violationRoot ?this .
+                                _:a spin:violationValue ?this_ .
+                            }
+                            WHERE { BIND ("taken" AS ?this_) }"""));
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, template);
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        Resource instance = getOntModel().createResource().addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals(instance, cvs.get(0).getRoot());
+        assertEquals("taken", cvs.get(0).getValue().asLiteral().getString());
+    }
+
+    // the violation message is the constraint's own authored rdfs:label - the channel the SPINConstraints
+    // rewrite severed when it stopped consulting the constraint resource. No authored label means no
+    // message at all: boilerplate fallbacks ("SPIN constraint at ...") must not masquerade as authored text
+    @Test
+    public void violationMessageFromConstraintLabel()
+    {
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger)).
+                addProperty(RDFS.label, "Missing foaf:name");
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        getOntModel().createResource("http://data/instance").addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertEquals("Missing foaf:name", cvs.get(0).getMessage());
+    }
+
+    @Test
+    public void violationMessageAbsentWithoutLabel()
+    {
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, SPL.Attribute).
+                addProperty(SPL.predicate, FOAF.name).
+                addLiteral(SPL.minCount, ResourceFactory.createTypedLiteral("1", XSDDatatype.XSDinteger));
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        getOntModel().createResource("http://data/instance").addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(1, cvs.size());
+        assertNull(cvs.get(0).getMessage());
+
+        Model result = ModelFactory.createDefaultModel();
+        SPINConstraints.addConstraintViolationsRDF(cvs, result, true);
+        assertFalse(result.contains(null, RDFS.label, (RDFNode) null));
+    }
+
+    @Test
+    public void violationMessagesIndependentPerViolation()
+    {
+        Resource template = getOntModel().createResource("http://ontology/template").addProperty(RDF.type, SPIN.Template).
+                addProperty(SPIN.body, getOntModel().createResource().addProperty(RDF.type, SP.Construct).
+                        addProperty(SP.text, """
+                            PREFIX spin: <http://spinrdf.org/spin#>
+                            PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+                            CONSTRUCT {
+                                _:a a spin:ConstraintViolation .
+                                _:a spin:violationRoot ?this .
+                                _:a rdfs:label "labelled violation" .
+                                _:b a spin:ConstraintViolation .
+                                _:b spin:violationRoot ?this .
+                            }
+                            WHERE {}"""));
+        Resource constraint = getOntModel().createResource("http://ontology/constraint").addProperty(RDF.type, template);
+        Resource cls = getOntModel().createResource("http://ontology/class").addProperty(RDF.type, RDFS.Class).
+                addProperty(SPIN.constraint, constraint);
+
+        getOntModel().createResource("http://data/instance").addProperty(RDF.type, cls);
+
+        List<ConstraintViolation> cvs = SPINConstraints.check(getOntModel());
+        assertEquals(2, cvs.size());
+        // one violation carries its CONSTRUCT-emitted label, the other has none - it must not inherit
+        // the first one's label (the loop used its label variable as an accumulator) nor grow a fallback
+        assertEquals(1, cvs.stream().filter(cv -> "labelled violation".equals(cv.getMessage())).count());
+        assertEquals(1, cvs.stream().filter(cv -> cv.getMessage() == null).count());
     }
 
     @Test
